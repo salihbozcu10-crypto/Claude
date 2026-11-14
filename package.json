@@ -1,0 +1,16 @@
+{
+  "name": "sessiz-vadi-harekati",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sessiz Vadi Harekâtı — tarayıcıda çalışan özgün bir özel kuvvetler taktik FPS oyunu (three.js)",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "three": "^0.187.0",
+    "three-mesh-bvh": "^0.9.18"
+  }
+}
