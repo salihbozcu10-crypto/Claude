@@ -16,13 +16,13 @@ class Parts {
     if (!this.map.has(mat)) this.map.set(mat, []); this.map.get(mat).push(g); return this;
   }
   box(mat, w, h, d, x, y, z, rx, ry, rz) { return this.push(mat, new THREE.BoxGeometry(w, h, d), x, y, z, rx, ry, rz); }
-  rbox(mat, w, h, d, x, y, z, r = 0.004, rx, ry, rz) { return this.push(mat, new RoundedBoxGeometry(w, h, d, 2, Math.min(r, w / 2.01, h / 2.01, d / 2.01)), x, y, z, rx, ry, rz); }
+  rbox(mat, w, h, d, x, y, z, r = 0.004, rx, ry, rz) { return this.push(mat, new RoundedBoxGeometry(w, h, d, 1, Math.min(r, w / 2.01, h / 2.01, d / 2.01)), x, y, z, rx, ry, rz); }
   // z ekseni boyunca silindir (axis: 'z' | 'y' | 'x')
   cyl(mat, r, len, x, y, z, axis = 'z', seg = 14, rTop) { const g = new THREE.CylinderGeometry(rTop ?? r, r, len, seg); if (axis === 'z') g.rotateX(Math.PI / 2); else if (axis === 'x') g.rotateZ(Math.PI / 2); return this.push(mat, g, x, y, z); }
   // iki nokta arası kapsül (parmak, kol)
   cap(mat, a, b, r, r2) {
     _a.set(a[0], a[1], a[2]); _b.set(b[0], b[1], b[2]); const len = _a.distanceTo(_b);
-    const g = r2 != null ? new THREE.CylinderGeometry(r2, r, len, 10) : new THREE.CapsuleGeometry(r, len, 3, 8);
+    const g = r2 != null ? new THREE.CylinderGeometry(r2, r, len, 10) : new THREE.CapsuleGeometry(r, len, 2, 7);
     _q.setFromUnitVectors(_up, _b.clone().sub(_a).normalize()); _p.copy(_a).add(_b).multiplyScalar(0.5); g.applyMatrix4(_m.compose(_p, _q, _s));
     return this.push(mat, g);
   }

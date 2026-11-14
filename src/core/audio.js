@@ -1,6 +1,7 @@
 // Ses motoru: tüm sesler WebAudio ile sentezlenir (dış dosya yok).
 // Konumsal ses, mesafeye göre boğulma, ses hızı gecikmesi, açık hava / iç mekân yankısı.
 import { makeRng, clamp, rr } from './utils.js';
+import { isTouch } from '../config.js';
 
 let SR = 44100;
 const rng = makeRng(777);
@@ -143,19 +144,33 @@ export class AudioEngine {
     this.comp = ctx.createDynamicsCompressor(); this.comp.threshold.value = -16; this.comp.knee.value = 12; this.comp.ratio.value = 7; this.comp.attack.value = 0.003; this.comp.release.value = 0.2;
     this.bus = ctx.createGain(); this.bus.connect(this.deafLP); this.deafLP.connect(this.comp); this.comp.connect(this.master); this.master.connect(ctx.destination);
     this.uiBus = ctx.createGain(); this.uiBus.connect(this.master);
-    const mkBuf = (arr) => { const b = ctx.createBuffer(1, arr.length, SR); b.copyToChannel(arr, 0); return b; };
-    for (const k in GEN) this.buffers[k] = mkBuf(GEN[k]());
-    for (const s of ['sand', 'rock', 'concrete', 'metal', 'wood']) for (let v = 0; v < 3; v++) this.buffers[`step_${s}${v}`] = mkBuf(stepGen(s, v));
-    for (const k of ['wind', 'heli', 'generator', 'fire', 'crickets', 'tinnitus', 'heart']) this.buffers['loop_' + k] = mkBuf(loopGen(k));
-    const mkIR = (sec, tau, echoes) => { const [L, Rr] = impulse(sec, tau, echoes); const b = ctx.createBuffer(2, L.length, SR); b.copyToChannel(L, 0); b.copyToChannel(Rr, 1); return b; };
-    this.revOut = ctx.createConvolver(); this.revOut.buffer = mkIR(2.6, 0.5, [[0.21, 0.5], [0.36, 0.34], [0.62, 0.22], [0.95, 0.12]]);
-    this.revIn = ctx.createConvolver(); this.revIn.buffer = mkIR(0.9, 0.16, []);
+    this.revOut = ctx.createConvolver(); this.revIn = ctx.createConvolver();
     this.revOutG = ctx.createGain(); this.revInG = ctx.createGain(); this.revInG.gain.value = 0;
     this.revSend = ctx.createGain(); this.revSend.connect(this.revOut); this.revSend.connect(this.revIn);
     this.revOut.connect(this.revOutG); this.revIn.connect(this.revInG); this.revOutG.connect(this.bus); this.revInG.connect(this.bus);
-    this.ready = true;
-    this.loop('wind', { vol: 0.0 }); this.loop('tinnitus', { vol: 0 }); this.loop('heart', { vol: 0 });
+    this.ready = true; this.pending = {};
     this.resume();
+    this.generate(); // sesler arka planda, parça parça üretilir (ekran donmasın)
+  }
+
+  async generate() {
+    const ctx = this.ctx;
+    const mkBuf = (arr) => { const b = ctx.createBuffer(1, arr.length, SR); b.copyToChannel(arr, 0); return b; };
+    const mkIR = (sec, tau, echoes) => { const [L, Rr] = impulse(sec, tau, echoes); const b = ctx.createBuffer(2, L.length, SR); b.copyToChannel(L, 0); b.copyToChannel(Rr, 1); return b; };
+    const jobs = [];
+    // önce sık duyulanlar
+    for (const k of ['rifleSup', 'pistolSup', 'rifleAK', 'cloth', 'impDirt', 'impConcrete', 'impMetal', 'hitFlesh', 'crack', 'whiz', 'beep', 'uiClick']) jobs.push(() => { this.buffers[k] = mkBuf(GEN[k]()); });
+    for (const s of ['sand', 'rock', 'concrete', 'metal', 'wood']) for (let v = 0; v < 3; v++) jobs.push(() => { this.buffers[`step_${s}${v}`] = mkBuf(stepGen(s, v)); });
+    for (const k in GEN) jobs.push(() => { if (!this.buffers[k]) this.buffers[k] = mkBuf(GEN[k]()); });
+    for (const k of ['wind', 'fire', 'generator', 'crickets', 'tinnitus', 'heart', 'heli']) jobs.push(() => { this.buffers['loop_' + k] = mkBuf(loopGen(k)); this.startPending(k); });
+    jobs.push(() => { this.revIn.buffer = mkIR(isTouch ? 0.5 : 0.9, 0.16, []); });
+    jobs.push(() => { this.revOut.buffer = isTouch ? mkIR(1.3, 0.4, [[0.21, 0.5], [0.36, 0.3]]) : mkIR(2.6, 0.5, [[0.21, 0.5], [0.36, 0.34], [0.62, 0.22], [0.95, 0.12]]); });
+    let t0 = performance.now();
+    for (const job of jobs) {
+      job();
+      if (performance.now() - t0 > 10) { await new Promise((r) => setTimeout(r, 0)); t0 = performance.now(); }
+    }
+    this.loop('wind', { vol: 0.0 }); this.loop('tinnitus', { vol: 0 }); this.loop('heart', { vol: 0 });
   }
   resume() { if (this.ctx && this.ctx.state !== 'running') this.ctx.resume().catch(() => {}); }
   suspend() { if (this.ctx && this.ctx.state === 'running') this.ctx.suspend().catch(() => {}); }
@@ -175,7 +190,7 @@ export class AudioEngine {
   // Konumsal: mesafe zayıflaması, hava emilimi (alçak geçiren), engel arkası boğulma, ses hızı gecikmesi
   playAt(name, pos, o = {}) {
     if (!this.ready) return; const cam = this.g.camera.position; const dx = pos.x - cam.x, dy = pos.y - cam.y, dz = pos.z - cam.z; const dist = Math.hypot(dx, dy, dz);
-    const max = o.max ?? 120; if (dist > max * 1.6) return; if (this.voices > 26 && (o.prio ?? 0) < 1) return;
+    const max = o.max ?? 120; if (dist > max * 1.6) return; const cap = isTouch ? 14 : 26; if (this.voices > cap && (o.prio ?? 0) < 1) return; if (this.voices > cap * 2 && (o.prio ?? 0) < 2) return;
     const s = this._src(name, o.pitch ?? rr(0.96, 1.04)); if (!s) return; const ctx = this.ctx;
     const ref = o.ref ?? 3; let gain = (o.vol ?? 1) * ref / (ref + Math.max(0, dist - ref) * (o.roll ?? 1));
     let cutoff = 20000 / (1 + dist * (o.absorb ?? 0.03));
@@ -201,8 +216,11 @@ export class AudioEngine {
   }
 
   // Döngüsel sesler
+  // Ses henüz üretilmediyse istek bekletilir, üretilince başlatılır
+  startPending(name) { const p = this.pending && this.pending[name]; if (p) { delete this.pending[name]; this.loop(name, p); } }
   loop(name, o = {}) {
     if (!this.ready) return null; if (this.loops[name]) return this.loops[name];
+    if (!this.buffers['loop_' + name]) { this.pending[name] = { ...o }; return null; }
     const ctx = this.ctx; const s = this._src('loop_' + name, 1); if (!s) return null; s.loop = true;
     const g = ctx.createGain(); g.gain.value = o.vol ?? 0; s.connect(g);
     const L = { src: s, gain: g, pos: o.pos || null };
@@ -210,10 +228,10 @@ export class AudioEngine {
     else g.connect(name === 'tinnitus' ? this.master : this.bus);
     s.start(); this.loops[name] = L; return L;
   }
-  loopVol(name, v, t = 0.2) { const L = this.loops[name]; if (L) L.gain.gain.setTargetAtTime(v, this.ctx.currentTime, t); }
-  loopPos(name, pos) { const L = this.loops[name]; if (L && L.panner) { L.panner.positionX.value = pos.x; L.panner.positionY.value = pos.y; L.panner.positionZ.value = pos.z; } }
+  loopVol(name, v, t = 0.2) { const L = this.loops[name]; if (L) L.gain.gain.setTargetAtTime(v, this.ctx.currentTime, t); else if (this.pending && this.pending[name]) this.pending[name].vol = v; }
+  loopPos(name, pos) { if (this.pending && this.pending[name]) this.pending[name].pos = pos; const L = this.loops[name]; if (L && L.panner) { L.panner.positionX.value = pos.x; L.panner.positionY.value = pos.y; L.panner.positionZ.value = pos.z; } }
   loopRate(name, r) { const L = this.loops[name]; if (L) L.src.playbackRate.setTargetAtTime(r, this.ctx.currentTime, 0.2); }
-  stopLoop(name) { const L = this.loops[name]; if (L) { try { L.src.stop(); } catch { /* yoksay */ } delete this.loops[name]; } }
+  stopLoop(name) { if (this.pending) delete this.pending[name]; const L = this.loops[name]; if (L) { try { L.src.stop(); } catch { /* yoksay */ } delete this.loops[name]; } }
 
   // Şafak kuşları: anlık FM cıvıltıları
   chirp() {

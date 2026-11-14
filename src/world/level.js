@@ -99,7 +99,7 @@ export async function createWorld({ T, M, quality, onProgress }) {
   feat.flats.push({ x: 6, z: 172, r: 5, y: startY - 0.3, blend: 14 });
   const terrain = new Terrain(feat, { segs: quality.terrainSegs || 256 });
   const nav = new NavGrid(-190, -110, 300, 300, 0.5);
-  const B = new Builder(M, terrain, nav);
+  const B = new Builder(M, terrain, nav); B.low = !!quality.terrainLow;
 
   const ctrl = terrain.buildControlMap((c) => {
     c.rect(0, 0, 62, 50, 'rgba(150,0,0,1)', 5);                       // avlu: sıkışmış toprak

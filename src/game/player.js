@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { clamp, damp, lerp, smoothstep, DEG, Spring } from '../core/utils.js';
 import { SURF_NAMES } from '../gfx/materials.js';
 
-const R = 0.32, H_STAND = 1.8, H_CROUCH = 1.12;
+const R = 0.32, H_STAND = 1.8, H_CROUCH = 1.12, STEP = 0.4; // STEP: kendiliğinden çıkılan en yüksek basamak (m)
 const _seg = new THREE.Line3(), _box = new THREE.Box3(), _tp = new THREE.Vector3(), _cp = new THREE.Vector3(), _dir = new THREE.Vector3();
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _ray = new THREE.Ray(), _n = new THREE.Vector3();
 
@@ -18,17 +18,21 @@ export class Player {
     this.mantle = null; this.noise = 0; this.hurt = 0; this.damageFlash = 0; this.suppress = 0; this.flash = 0; this.deaf = 0;
     this.healing = 0; this.shakeT = 0; this.shakeAmp = 0; this.deathT = 0; this.lastSurface = 'sand'; this.camRoll = 0;
     this.adsT = 0; this.fovBase = game.settings.fov; this.breath = 0; this.hitDir = []; this.inside = 0; this.sunVis = 1; this.visT = 0;
-    this.lastDamageT = -99; this.godMode = false; this.frozen = false; this.viewPunch = new Spring(90, 12);
+    this.lastDamageT = -99; this.godMode = false; this.frozen = false; this.viewPunch = new Spring(90, 12); this.stepOfs = 0; this.prevY = null; this.safePos = null;
   }
 
   spawn(x, z, yaw) {
     const y = this.g.world.groundY(x, z);
     this.pos.set(x, y + 0.02, z); this.hv.set(0, 0, 0); this.vy = 0; this.yaw = yaw; this.pitch = -0.05; this.health = 100; this.alive = true; this.bandages = 3; this.stamina = 1;
     this.crouching = false; this.height = H_STAND; this.deathT = 0; this.mantle = null; this.hurt = 0; this.flash = 0; this.deaf = 0;
+    this.prevY = null; this.stepOfs = 0; this.safePos = null; this.hitDir.length = 0; this.kickPitch = 0; this.kickYaw = 0;
   }
 
   // Kapsülü çarpışma ağından dışarı iter; düzeltme vektörünü döndürür
-  resolve(h) {
+  // Kapsülü çarpışma ağından dışarı iter. Yürünebilir yüzeyler (zemin, yokuş, merdiven rampası) yalnızca
+  // dikey iter; böylece yokuşta geri kayma olmaz. Ayak hizasının STEP kadar üstünü geçmeyen alçak engeller
+  // (eşik, basamak, palet, moloz) basamak gibi aşılır.
+  resolve(h, step = true) {
     const bvh = this.g.world.collider.bvh;
     _seg.start.set(this.pos.x, this.pos.y + R, this.pos.z); _seg.end.set(this.pos.x, this.pos.y + h - R, this.pos.z);
     _box.makeEmpty(); _box.expandByPoint(_seg.start); _box.expandByPoint(_seg.end); _box.min.addScalar(-R); _box.max.addScalar(R);
@@ -36,11 +40,17 @@ export class Player {
       intersectsBounds: (b) => b.intersectsBox(_box),
       intersectsTriangle: (tri) => {
         const d = tri.closestPointToSegment(_seg, _tp, _cp);
-        if (d < R) {
-          const depth = R - d;
-          if (d > 1e-5) _dir.copy(_cp).sub(_tp).multiplyScalar(1 / d); else tri.getNormal(_dir);
-          _seg.start.addScaledVector(_dir, depth); _seg.end.addScaledVector(_dir, depth);
+        if (d >= R) return;
+        const depth = R - d;
+        if (d > 1e-5) _dir.copy(_cp).sub(_tp).multiplyScalar(1 / d); else tri.getNormal(_dir);
+        const footY = _seg.start.y - R;
+        if (step && _dir.y > -0.2 && _tp.y <= footY + STEP && Math.max(tri.a.y, tri.b.y, tri.c.y) <= footY + STEP) {
+          const hx = _seg.start.x - _tp.x, hz = _seg.start.z - _tp.z, hd2 = hx * hx + hz * hz;
+          if (hd2 < R * R) { const dy = _tp.y + Math.sqrt(R * R - hd2) - _seg.start.y; if (dy > 0) { _seg.start.y += dy; _seg.end.y += dy; } }
+          return;
         }
+        if (_dir.y > 0.62) { const dy = Math.min(depth / _dir.y, R); _seg.start.y += dy; _seg.end.y += dy; }
+        else { _seg.start.addScaledVector(_dir, depth); _seg.end.addScaledVector(_dir, depth); }
       },
     });
     _v.set(_seg.start.x - this.pos.x, _seg.start.y - R - this.pos.y, _seg.start.z - this.pos.z);
@@ -139,7 +149,7 @@ export class Player {
         else if (_n.y < -0.5 && this.vy > 0) this.vy = 0;
         // duvara doğru olan yatay hızı sönümle (kay)
         const hl = Math.hypot(_n.x, _n.z);
-        if (hl > 0.3) { const nx = _n.x / hl, nz = _n.z / hl; const vn = this.hv.x * nx + this.hv.z * nz; if (vn < 0) { this.hv.x -= nx * vn; this.hv.z -= nz * vn; } }
+        if (hl > 0.3 && _n.y < 0.62) { const nx = _n.x / hl, nz = _n.z / hl; const vn = this.hv.x * nx + this.hv.z * nz; if (vn < 0) { this.hv.x -= nx * vn; this.hv.z -= nz * vn; } }
         if (_n.y > 0.05 && _n.y <= 0.62 && !grounded) { /* dik yamaç: kay */ this.hv.x += _n.x * 6 * h; this.hv.z += _n.z * 6 * h; }
       }
     }
@@ -151,8 +161,14 @@ export class Player {
       this.airTime = 0;
     }
     // harekât alanı sınırı
-    const rr = Math.hypot(this.pos.x, this.pos.z); if (rr > 345) { this.pos.x *= 345 / rr; this.pos.z *= 345 / rr; g.hud?.warn('HAREKÂT ALANI SINIRI — GERİ DÖN'); }
+    const rr = Math.hypot(this.pos.x, this.pos.z);
+    if (rr > 430) { this.pos.x *= 430 / rr; this.pos.z *= 430 / rr; g.hud?.warn('HAREKÂT ALANI SINIRI — GERİ DÖN'); }
+    else if (rr > 395) g.hud?.warn('HAREKÂT ALANININ DIŞINA ÇIKIYORSUN');
     if (this.pos.y < -60) this.pos.y = this.g.world.terrain.heightAt(this.pos.x, this.pos.z) + 1;
+    if (!Number.isFinite(this.pos.x + this.pos.y + this.pos.z + this.hv.x + this.hv.z + this.vy)) { this.pos.copy(this.safePos || this.pos.set(0, 0.2, 40)); this.hv.set(0, 0, 0); this.vy = 0; }
+    else if (this.onGround) (this.safePos || (this.safePos = new THREE.Vector3())).copy(this.pos);
+    // basamak çıkarken kamera yumuşak yükselsin
+    const lift = this.pos.y - (this.prevY ?? this.pos.y); if (this.onGround && lift > 0.06 && lift < 0.45) this.stepOfs -= lift; this.prevY = this.pos.y;
 
     this.speed = Math.hypot(this.hv.x, this.hv.z); this.moving = this.speed > 0.4;
     // adım sesleri + gürültü yarıçapı (yapay zekâ duyması için)
@@ -224,7 +240,8 @@ export class Player {
     const rp = this.recoilPitch.update(dt), ry = this.recoilYaw.update(dt), vp = this.viewPunch.update(dt);
     let shx = 0, shy = 0; if (this.shakeT > 0) { this.shakeT -= dt; const a = this.shakeAmp * Math.min(1, this.shakeT * 2.5); shx = (Math.random() - 0.5) * a; shy = (Math.random() - 0.5) * a; if (this.shakeT <= 0) this.shakeAmp = 0; }
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
-    const eyeH = this.height - 0.13 + bobY + dip - Math.abs(this.lean) * 0.07;
+    this.stepOfs = damp(this.stepOfs || 0, 0, 14, dt);
+    const eyeH = this.height - 0.13 + bobY + dip - Math.abs(this.lean) * 0.07 + this.stepOfs;
     const lx = this.lean * 0.42 + bobX;
     this.eye.set(this.pos.x + cy * lx, this.pos.y + eyeH, this.pos.z - sy * lx);
     cam.position.copy(this.eye);

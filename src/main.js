@@ -33,6 +33,7 @@ class Game {
     try { renderer = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false, depth: false, alpha: false }); }
     catch (e) { $('load-text').textContent = 'Bu cihazda WebGL 2 başlatılamadı. Güncel bir tarayıcı ile deneyin.'; throw e; }
     renderer.toneMapping = THREE.NoToneMapping; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+    canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.contextLost = true; if (this.state === 'play') this.pause(); this.menu.dead('Grafik bağlantısı koptu', 'Cihaz grafik belleğini boşalttı. Devam etmek için sayfayı yenile; daha akıcı oynamak için Ayarlar’dan kaliteyi Düşük yap.'); $('btn-retry').hidden = true; });
     this.qualityName = hq ? hq[1] : this.settings.quality === 'auto' ? autoQuality(renderer) : this.settings.quality;
     const Q = this.Q = { ...QUALITY[this.qualityName] }; this.perf.scale = Q.scale;
     this.scene = new THREE.Scene(); this.fxScene = new THREE.Scene();
@@ -129,7 +130,7 @@ class Game {
     const w = Math.max(64, innerWidth), h = Math.max(64, innerHeight); const dpr = Math.min(devicePixelRatio || 1, this.Q.maxDpr);
     this.renderer.setPixelRatio(dpr); this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); this.post.setSize(Math.round(w * dpr), Math.round(h * dpr)); this.fx.setSize(this.post.w, this.post.h); this.hud.resize();
-    $('rotate').hidden = !(isTouch && h > w * 1.05);
+    const portrait = isTouch && h > w * 1.05; $('rotate').hidden = !portrait; if (portrait && this.state === 'play') this.pause();
   }
 
   lineBlocked(a, b) { _d.copy(b).sub(a); const dist = _d.length(); if (dist < 0.1) return false; _d.multiplyScalar(1 / dist); return !!this.ballistics.raycast(a, _d, dist - 0.1); }
@@ -188,13 +189,18 @@ class Game {
       if (st === 'intro') { pl.frozen = this.stateT < 1.2; if (this.stateT > 4.2) { this.state = 'play'; $('intro').hidden = true; pl.frozen = false; } }
       if (st === 'play') { this.missionTime += dt; if (inp.hitAny('pause')) { this.pause(); inp.endFrame(); return; } }
       if (inp.hit('nvg') && pl.alive) { this.nvg = !this.nvg; this.audio.play('nvg', { vol: 0.8 }); this.post.fx.uNvg.value = this.nvg ? 1 : 0; this.irLight.intensity = this.nvg ? 26 : 0; }
-      pl.update(dt); this.weapons.update(dt); this.ai.update(dt); this.ballistics.update(dt); if (st !== 'dead') this.mission.update(dt); this.heli.update(dt);
+      try { pl.update(dt); } catch (e) { this.err('oyuncu', e); }
+      try { this.weapons.update(dt); } catch (e) { this.err('silah', e); }
+      try { this.ai.update(dt); } catch (e) { this.err('yapay zekâ', e); }
+      try { this.ballistics.update(dt); } catch (e) { this.err('balistik', e); }
+      try { if (st !== 'dead') this.mission.update(dt); } catch (e) { this.err('görev', e); }
+      try { this.heli.update(dt); } catch (e) { this.err('helikopter', e); }
       if (st === 'dead' && this.stateT > 2.8 && this.menu.current !== 'dead') { this.menu.dead(this.deadInfo[0], this.deadInfo[1]); this.hud.show(false); this.input.enabled = false; this.input.exitLock(); }
-      $('lockhint').hidden = !(st === 'play' && !inp.touch && !inp.locked && !inp.freeLook);
+      const lh = !(st === 'play' && !inp.touch && !inp.locked && !inp.freeLook); if (this._lh !== lh) { this._lh = lh; $('lockhint').hidden = lh; }
     } else if (st === 'outro') this.updateOutro(dt);
     else if (st !== 'free') this.updateMenuCamera(dt);
-    this.fx.update(dt, this.camera); this.updateLights(dt);
-    if (!this.noRender) { this.render(dt); this.hud.update(dt); }
+    try { this.fx.update(dt, this.camera); this.updateLights(dt); } catch (e) { this.err('efekt', e); }
+    if (!this.noRender) { try { this.render(dt); } catch (e) { this.err('çizim', e); } try { this.hud.update(dt); } catch (e) { this.err('arayüz', e); } }
     this.audio.update(dt, { inside: pl.inside, deaf: pl.deaf, hurt: pl.alive && (st === 'play') ? pl.hurt : 0, birds: this.timeName === 'dawn' && st !== 'outro', menu: st === 'menu' });
     this.monitor(dt);
     inp.endFrame();
@@ -225,6 +231,7 @@ class Game {
     const playing = this.state === 'play' || this.state === 'intro' || this.state === 'dead';
     if (playing) { cam.getWorldDirection(_f); this.focus.copy(pl.pos).addScaledVector(_f.setY(0).normalize(), this.Q.shadowRange * 0.42); } else this.focus.copy(cam.position);
     this.sky.update(cam, this.time, this.focus);
+    const se = this.Q.shadowEvery || 1; const sm = this.renderer.shadowMap; if (se > 1) { sm.autoUpdate = false; this.shadowTick = ((this.shadowTick || 0) + 1) % se; if (this.shadowTick === 0) sm.needsUpdate = true; } else sm.autoUpdate = true;
     this.letter = damp(this.letter, this.state === 'intro' && this.stateT < 3.4 ? 1 : this.state === 'outro' ? 1 : 0, 4, dt || 0.016);
     fx.uKey.value = p.key; fx.uExposure.value = p.exposure * (playing ? lerp(1, 1.0, pl.inside) : 1);
     fx.uDamage.value = playing ? pl.damageFlash : 0; fx.uHurt.value = playing ? pl.hurt : 0; fx.uFlash.value = playing ? clamp(pl.flash, 0, 1) : 0; fx.uSuppress.value = playing ? pl.suppress : 0; fx.uLetter.value = this.letter;
@@ -237,9 +244,12 @@ class Game {
     const pf = this.perf; pf.acc += dt; pf.n++; pf.cool -= dt;
     if (pf.acc < 2) return; const avg = pf.acc / pf.n; pf.acc = 0; pf.n = 0; this.fps = Math.round(1 / avg);
     if (this.settings.quality !== 'auto' || pf.cool > 0 || this.state === 'menu') return;
-    if (avg > 0.031 && pf.scale > 0.5) { pf.scale = Math.max(0.5, pf.scale - 0.12); this.post.setQuality({ scale: pf.scale }); this.fx.setSize(this.post.w, this.post.h); pf.cool = 4; if (pf.scale <= 0.62 && this.post.q.ao) { this.post.setQuality({ ao: false, rays: false }); } }
+    if (avg > (isTouch ? 0.026 : 0.031) && pf.scale > 0.5) { pf.scale = Math.max(0.5, pf.scale - 0.12); this.post.setQuality({ scale: pf.scale }); this.fx.setSize(this.post.w, this.post.h); pf.cool = 4; if (pf.scale <= 0.62 && this.post.q.ao) { this.post.setQuality({ ao: false, rays: false }); } }
     else if (avg < 0.0125 && pf.scale < this.Q.scale - 0.01) { pf.scale = Math.min(this.Q.scale, pf.scale + 0.06); this.post.setQuality({ scale: pf.scale }); this.fx.setSize(this.post.w, this.post.h); pf.cool = 6; }
   }
+
+  // Hata bir kez günlüğe yazılır; oyun döngüsü sürmeye devam eder
+  err(where, e) { this._errs = this._errs || {}; if (this._errs[where]) return; this._errs[where] = true; console.error('[' + where + ']', e); }
 
   // --- test / hata ayıklama yardımcıları
   testPause(v) { this.paused = v; }

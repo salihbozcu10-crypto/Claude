@@ -81,7 +81,7 @@ function pbr(set, o = {}) {
   const m = new THREE.MeshStandardMaterial({
     map: set.map, normalMap: set.normalMap, aoMap: set.ormMap, roughnessMap: set.ormMap, metalnessMap: set.ormMap,
     roughness: o.roughness ?? 1, metalness: o.metalness ?? 1, color: o.color ?? 0xffffff,
-    side: o.side ?? THREE.FrontSide, envMapIntensity: o.env ?? 1,
+    side: o.side ?? THREE.FrontSide, envMapIntensity: o.env ?? 1, vertexColors: !!o.vc,
   });
   if (o.normalScale != null) m.normalScale.set(o.normalScale, o.normalScale);
   m.userData.surface = o.surface ?? SURF.concrete;
@@ -99,40 +99,33 @@ export function createMaterials(T) {
   const S = (m, grime = false) => patch(m, { sky: 'attr', grime });
   const M = {};
   const c = (r, g, b) => new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace);
-  M.concrete = S(pbr(T.concrete, { surface: SURF.concrete }), true);
-  M.concreteDark = S(pbr(T.concrete, { surface: SURF.concrete, color: c(0.7, 0.68, 0.66) }), true);
-  M.plaster = S(pbr(T.plaster, { surface: SURF.concrete, color: c(0.9, 0.86, 0.78) }), true);
-  M.plasterOchre = S(pbr(T.plaster, { surface: SURF.concrete, color: c(0.84, 0.7, 0.5) }), true);
-  M.plasterGrey = S(pbr(T.plaster, { surface: SURF.concrete, color: c(0.68, 0.7, 0.68) }), true);
-  M.plasterIn = S(pbr(T.plaster, { surface: SURF.concrete, color: c(0.78, 0.76, 0.68) }), true);
+  // Yalnızca rengi farklı olan malzemeler köşe rengiyle tek malzemede birleşir (daha az çizim çağrısı)
+  const tint = (base, color) => ({ isTint: true, base, color, userData: base.userData });
+  M.concrete = S(pbr(T.concrete, { surface: SURF.concrete, vc: true }), true);
+  M.concreteDark = tint(M.concrete, c(0.7, 0.68, 0.66));
+  M.plasterBase = S(pbr(T.plaster, { surface: SURF.concrete, vc: true }), true);
+  M.plaster = tint(M.plasterBase, c(0.9, 0.86, 0.78)); M.plasterOchre = tint(M.plasterBase, c(0.84, 0.7, 0.5));
+  M.plasterGrey = tint(M.plasterBase, c(0.68, 0.7, 0.68)); M.plasterIn = tint(M.plasterBase, c(0.78, 0.76, 0.68));
   M.cmu = S(pbr(T.cmu, { surface: SURF.concrete }), true);
   M.floor = S(pbr(T.floor, { surface: SURF.concrete }));
-  M.roofMetal = S(pbr(T.corrugated, { surface: SURF.metal, color: c(0.56, 0.42, 0.36) }));
-  M.wallMetal = S(pbr(T.corrugated, { surface: SURF.metal, color: c(0.6, 0.64, 0.6) }), true);
-  M.wallMetalGreen = S(pbr(T.corrugated, { surface: SURF.metal, color: c(0.4, 0.47, 0.38) }), true);
-  M.contRed = S(pbr(T.container, { surface: SURF.metal, color: c(0.58, 0.2, 0.15) }), true);
-  M.contBlue = S(pbr(T.container, { surface: SURF.metal, color: c(0.2, 0.33, 0.48) }), true);
-  M.contGreen = S(pbr(T.container, { surface: SURF.metal, color: c(0.26, 0.4, 0.3) }), true);
-  M.contTan = S(pbr(T.container, { surface: SURF.metal, color: c(0.66, 0.56, 0.38) }), true);
+  M.corrugated = S(pbr(T.corrugated, { surface: SURF.metal, vc: true }), true);
+  M.roofMetal = tint(M.corrugated, c(0.56, 0.42, 0.36)); M.wallMetal = tint(M.corrugated, c(0.6, 0.64, 0.6)); M.wallMetalGreen = tint(M.corrugated, c(0.4, 0.47, 0.38));
+  M.container = S(pbr(T.container, { surface: SURF.metal, vc: true }), true);
+  M.contRed = tint(M.container, c(0.58, 0.2, 0.15)); M.contBlue = tint(M.container, c(0.2, 0.33, 0.48)); M.contGreen = tint(M.container, c(0.26, 0.4, 0.3)); M.contTan = tint(M.container, c(0.66, 0.56, 0.38));
   M.galvanized = S(pbr(T.galvanized, { surface: SURF.metal }));
-  M.paintOlive = S(pbr(T.paint, { surface: SURF.metal, color: c(0.33, 0.36, 0.24) }));
-  M.paintTan = S(pbr(T.paint, { surface: SURF.metal, color: c(0.66, 0.57, 0.4) }));
-  M.paintWhite = S(pbr(T.paint, { surface: SURF.metal, color: c(0.82, 0.82, 0.78) }));
-  M.paintRed = S(pbr(T.paint, { surface: SURF.metal, color: c(0.6, 0.14, 0.1) }));
-  M.paintBlue = S(pbr(T.paint, { surface: SURF.metal, color: c(0.16, 0.26, 0.42) }));
-  M.paintYellow = S(pbr(T.paint, { surface: SURF.metal, color: c(0.78, 0.6, 0.12) }));
-  M.paintDark = S(pbr(T.paint, { surface: SURF.metal, color: c(0.16, 0.17, 0.17) }));
+  M.paint = S(pbr(T.paint, { surface: SURF.metal, vc: true }), true);
+  M.paintOlive = tint(M.paint, c(0.33, 0.36, 0.24)); M.paintTan = tint(M.paint, c(0.66, 0.57, 0.4)); M.paintWhite = tint(M.paint, c(0.82, 0.82, 0.78));
+  M.paintRed = tint(M.paint, c(0.6, 0.14, 0.1)); M.paintBlue = tint(M.paint, c(0.16, 0.26, 0.42)); M.paintYellow = tint(M.paint, c(0.78, 0.6, 0.12)); M.paintDark = tint(M.paint, c(0.16, 0.17, 0.17));
   M.steel = S(pbr(T.steel, { surface: SURF.metal }));
   M.gunmetal = S(pbr(T.gunmetal, { surface: SURF.metal }));
   M.black = S(pbr(T.polymer, { surface: SURF.rubber }));
   M.wood = S(pbr(T.wood, { surface: SURF.wood }));
-  M.woodOld = S(pbr(T.woodOld, { surface: SURF.wood }));
-  M.woodDark = S(pbr(T.woodOld, { surface: SURF.wood, color: c(0.55, 0.47, 0.4) }));
-  M.burlap = S(pbr(T.burlap, { surface: SURF.sand }));
-  M.hesco = S(pbr(T.burlap, { surface: SURF.sand, color: c(0.8, 0.78, 0.72) }));
-  M.canvasOlive = S(pbr(T.canvas, { surface: SURF.fabric, color: c(0.36, 0.38, 0.27), side: THREE.DoubleSide }));
-  M.canvasTan = S(pbr(T.canvas, { surface: SURF.fabric, color: c(0.66, 0.58, 0.44), side: THREE.DoubleSide }));
-  M.canvasBlue = S(pbr(T.canvas, { surface: SURF.fabric, color: c(0.22, 0.34, 0.5), side: THREE.DoubleSide }));
+  M.woodOld = S(pbr(T.woodOld, { surface: SURF.wood, vc: true }), true);
+  M.woodDark = tint(M.woodOld, c(0.55, 0.47, 0.4)); M.bark = tint(M.woodOld, c(0.5, 0.42, 0.36));
+  M.burlap = S(pbr(T.burlap, { surface: SURF.sand, vc: true }), true);
+  M.hesco = tint(M.burlap, c(0.8, 0.78, 0.72));
+  M.canvas = S(pbr(T.canvas, { surface: SURF.fabric, side: THREE.DoubleSide, vc: true }));
+  M.canvasOlive = tint(M.canvas, c(0.36, 0.38, 0.27)); M.canvasTan = tint(M.canvas, c(0.66, 0.58, 0.44)); M.canvasBlue = tint(M.canvas, c(0.22, 0.34, 0.5));
   M.mattress = S(pbr(T.canvas, { surface: SURF.fabric, color: c(0.6, 0.58, 0.5) }));
   M.tire = S(pbr(T.tire, { surface: SURF.rubber }));
   M.rust = S(pbr(T.rust, { surface: SURF.metal }));
@@ -157,7 +150,6 @@ export function createMaterials(T) {
   M.grass = fol(0.09); M.bush = fol(0.035); M.leaves = fol(0.012);
   M.camoNet = patch(new THREE.MeshStandardMaterial({ map: T.foliage, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.95, color: c(0.9, 0.9, 0.82) }), { wind: 0.0001 });
   M.camoNet.userData.surface = SURF.fabric; M.camoNet.alphaToCoverage = true;
-  M.bark = S(pbr(T.woodOld, { surface: SURF.wood, color: c(0.5, 0.42, 0.36) }));
 
   // Hareketli nesneler için (özniteliksiz, tekdüze gökyüzü görünürlüğü)
   M.dyn = {

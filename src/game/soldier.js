@@ -36,9 +36,10 @@ class SkinParts {
     _q.setFromUnitVectors(_up, _c.copy(_a).sub(_b).normalize()); _p.copy(_a).add(_b).multiplyScalar(0.5); g.applyMatrix4(_m.compose(_p, _q, _s));
     return this.push(g, bone, c, Math.PI * (r1 + r2), len);
   }
-  ball(bone, r, x, y, z, c, sx = 1, sy = 1, sz = 1) { const g = new THREE.SphereGeometry(r, 9, 6); g.scale(sx, sy, sz); g.translate(x, y, z); return this.push(g, bone, c, 6.3 * r * sx, 3.1 * r * sy); }
+  ball(bone, r, x, y, z, c, sx = 1, sy = 1, sz = 1) { const g = new THREE.SphereGeometry(r, 8, 5); g.scale(sx, sy, sz); g.translate(x, y, z); return this.push(g, bone, c, 6.3 * r * sx, 3.1 * r * sy); }
   box(bone, w, h, d, x, y, z, c, r = 0.012, rx = 0, ry = 0, rz = 0) {
-    const g = new RoundedBoxGeometry(w, h, d, 1, Math.min(r, w / 2.01, h / 2.01, d / 2.01)); _e.set(rx, ry, rz); _q.setFromEuler(_e); _p.set(x, y, z); g.applyMatrix4(_m.compose(_p, _q, _s));
+    const big = Math.min(w, h, d) >= 0.09 && Math.max(w, h, d) >= 0.2;
+    const g = big ? new RoundedBoxGeometry(w, h, d, 1, Math.min(r, w / 2.01, h / 2.01, d / 2.01)) : new THREE.BoxGeometry(w, h, d); _e.set(rx, ry, rz); _q.setFromEuler(_e); _p.set(x, y, z); g.applyMatrix4(_m.compose(_p, _q, _s));
     return this.push(g, bone, c, Math.max(w, d) * 2, h * 2);
   }
   build() { const g = mergeGeometries(this.geos, false); for (const x of this.geos) x.dispose(); g.computeBoundingSphere(); return g; }
@@ -136,6 +137,7 @@ export class Soldier {
     this.speed = 0; this.moveLocal = new THREE.Vector2(0, 1); this.crouch = 0; this.crouchT = 0; this.aim = 0; this.aimT = 0; this.aimPitch = 0; this.aimYaw = 0; this.cover = 0; this.kneel = this.team === 'hostage' ? 1 : 0;
     this.phase = Math.random(); this.moveK = 0; this.kick = 0; this.flinch = new Spring(120, 10); this.flinchYaw = new Spring(100, 9); this.idleT = Math.random() * 10; this.look = 0; this.stunT = 0;
     this.deathT = -1; this.deathDir = 1; this.deathDur = 1; this.gunVel = null; this.wp = { head: new THREE.Vector3(), pelvis: new THREE.Vector3(), neck: new THREE.Vector3(), lKnee: new THREE.Vector3(), rKnee: new THREE.Vector3(), lFoot: new THREE.Vector3(), rFoot: new THREE.Vector3(), chest: new THREE.Vector3() };
+    this.lodAcc = 0; this.lodN = 0;
     this.muzzle = new THREE.Vector3(); this.gunDir = new THREE.Vector3(0, 0, 1); this.skyT = Math.random() * 0.5; this.frozen = false; this.ai = null; this.stepAcc = 0;
     // çalışma alanı
     this.Q = Array.from({ length: 17 }, () => new THREE.Quaternion()); this.Pp = Array.from({ length: 17 }, () => new THREE.Vector3());
@@ -267,7 +269,12 @@ export class Soldier {
       this.deathT += dt; if (this.deathT > this.deathDur + 0.6 && !this.gunVel?.active) { this.pose(dt); this.syncWorld(); this.frozen = true; return; }
       if (this.gunVel && this.gunVel.active) { const gv = this.gunVel; gv.v.y -= 9.8 * dt; this.gun.position.addScaledVector(gv.v, dt); this.gun.rotation.x += gv.w * dt; this.gun.rotation.z += gv.w * 0.6 * dt; if (this.gun.position.y < gv.floor) { this.gun.position.y = gv.floor; gv.active = false; this.gun.rotation.set(0, this.gun.rotation.y, Math.PI / 2); this.g.audio.playAt('impWood', this.gun.position, { vol: 0.5, ref: 3, max: 30 }); } }
     }
-    this.pose(dt); this.syncWorld();
+    const cam = this.g.camera.position, ddx = this.pos.x - cam.x, ddz = this.pos.z - cam.z, dist2 = ddx * ddx + ddz * ddz;
+    const hidden = dist2 > 250 * 250; this.mesh.visible = !hidden; if (this.gun) this.gun.visible = !hidden;
+    const sd = this.g.Q.soldierShadow || 50; this.mesh.castShadow = dist2 < sd * sd; if (this.gun) this.gun.castShadow = dist2 < sd * sd * 0.25;
+    const every = this.deathT >= 0 ? 1 : dist2 > 140 * 140 ? 4 : dist2 > 65 * 65 ? 2 : 1;
+    this.lodAcc += dt; this.lodN = (this.lodN + 1) % every;
+    if (this.lodN === 0) { this.pose(Math.min(this.lodAcc, 0.1)); this.syncWorld(); this.lodAcc = 0; }
     // adım sesi
     if (this.alive && this.speed > 0.5) { this.stepAcc += this.speed * dt; if (this.stepAcc > (this.speed > 3 ? 1.9 : 1.4)) { this.stepAcc = 0; const dx = this.pos.x - this.g.camera.position.x, dz = this.pos.z - this.g.camera.position.z; if (dx * dx + dz * dz < 26 * 26) this.g.audio.footstep(this.surface || 'sand', this.speed > 3 ? 0.9 : 0.5, this.pos); } }
     // iç mekân karartması
@@ -288,6 +295,8 @@ export class Soldier {
 
   damage(amount, dir, part, owner, explosive) {
     if (!this.alive) return false;
+    // rehine: düşman ateşinden (yelek) daha az etkilenir; oyuncunun kendi atışı tam hasar verir
+    if (this.team === 'hostage') { if (owner !== 'player') amount *= explosive ? 0.3 : 0.15; this.lastHitT = this.g.time; this.g.hud?.warn('REHİNE ATEŞ ALTINDA!'); }
     this.health -= amount; this.flinch.impulse(rr(4, 9)); this.flinchYaw.impulse(rr(-8, 8));
     if (this.ai) this.ai.onDamage(owner, dir);
     if (this.health <= 0) { this.die(dir, part, explosive); return true; }

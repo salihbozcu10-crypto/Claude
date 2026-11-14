@@ -84,11 +84,31 @@ kbd { font-family: var(--f-mono); font-size: 0.78em; padding: 0.12em 0.5em; bord
 .t-nvg { right: calc(var(--gr) + 260px); top: calc(var(--gt) + 56px); }
 .t-use { left: 50%; top: 66%; transform: translateX(-50%); width: 110px; height: 52px; background: rgba(224, 162, 58, 0.32); border-color: var(--amber); }
 .t-pause { right: var(--gr); top: var(--gt); width: 44px; min-width: 44px; font-family: var(--f-mono); cursor: pointer; }
-body.touch #status { bottom: auto; top: calc(var(--gt) + 0px); left: 50%; transform: translateX(-50%); min-width: 190px; padding: 5px 10px; }
-body.touch #ammo { bottom: auto; top: calc(var(--gt) + 106px); padding: 5px 10px; min-width: 120px; }
-body.touch #ammo .big { font-size: 1.5rem; }
-body.touch #objectives { top: calc(var(--gt) + 64px); font-size: 0.8rem; max-width: 46vw; }
-body.touch #radio { bottom: calc(var(--gb) + 8px); font-size: 0.85rem; max-width: 52vw; }
+/* Dokunmatik yerleşim (yatay telefon ~390 px yükseklik): sol üst durum, üst orta pusula, sağ üst mühimmat ve araç düğmeleri, sağ alt ateş grubu */
+body.touch #status { top: calc(var(--gt) - 6px); bottom: auto; left: var(--gx); transform: none; min-width: 0; width: 180px; padding: 4px 9px; }
+body.touch #status .row.sub { display: none; }
+body.touch #objectives { top: calc(var(--gt) + 30px); font-size: 0.76rem; max-width: min(300px, 38vw); padding: 5px 9px; }
+body.touch #ammo { top: calc(var(--gt) - 6px); bottom: auto; right: calc(var(--gr) + 126px); min-width: 0; padding: 3px 9px; }
+body.touch #ammo .big { font-size: 1.35rem; }
+body.touch #ammo .row.sub:last-child { display: none; }
+body.touch #radio { bottom: calc(var(--gb) + 4px); font-size: 0.82rem; max-width: 44vw; padding: 5px 10px; }
+body.touch #toast { bottom: calc(var(--gb) + 56px); font-size: 0.85rem; }
+body.touch #warn { top: calc(var(--gt) + 34px); font-size: 0.78rem; padding: 3px 12px; }
+body.touch #prompt { top: 54%; font-size: 0.9rem; }
+body.touch .tb { min-width: 0; width: 58px; height: 34px; font-size: 0.6rem; }
+body.touch .t-pause { right: var(--gr); top: calc(var(--gt) - 6px); width: 44px; height: 38px; }
+body.touch .t-nvg { right: var(--gr); top: calc(var(--gt) + 40px); }
+body.touch .t-heal { right: var(--gr); top: calc(var(--gt) + 80px); }
+body.touch .t-swap { right: var(--gr); top: calc(var(--gt) + 120px); }
+body.touch .t-gren { right: calc(var(--gr) + 66px); top: calc(var(--gt) + 40px); }
+body.touch .t-flash { right: calc(var(--gr) + 66px); top: calc(var(--gt) + 80px); }
+body.touch .t-fire { right: calc(var(--gr) + 10px); bottom: calc(var(--gb) + 22px); width: 84px; height: 84px; border-radius: 50%; font-size: 0.78rem; }
+body.touch .t-jump { right: calc(var(--gr) + 12px); bottom: calc(var(--gb) + 118px); width: 70px; height: 40px; }
+body.touch .t-ads { right: calc(var(--gr) + 104px); bottom: calc(var(--gb) + 14px); width: 62px; height: 62px; border-radius: 50%; }
+body.touch .t-reload { right: calc(var(--gr) + 104px); bottom: calc(var(--gb) + 88px); width: 66px; height: 40px; }
+body.touch .t-crouch { right: calc(var(--gr) + 178px); bottom: calc(var(--gb) + 14px); width: 66px; height: 40px; }
+body.touch .t-fire2 { left: calc(var(--gx) + 10px); top: auto; bottom: calc(var(--gb) + 150px); width: 60px; height: 60px; border-radius: 50%; }
+body.touch .t-use { top: 64%; width: 110px; height: 48px; font-size: 0.72rem; }
 
 /* ------------------------------------------------ geçişler */
 #fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 8; transition: opacity 0.6s; }

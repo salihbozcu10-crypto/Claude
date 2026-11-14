@@ -127,6 +127,7 @@ export class Sky {
 
     this.sun = new THREE.DirectionalLight(0xffffff, 1);
     this.sun.castShadow = true;
+    this.sun.shadow.camera.layers.enable(1); // dünyanın gölge gövdeleri katman 1'de (ana kamerada görünmez)
     this.sun.shadow.bias = -0.00035; this.sun.shadow.normalBias = 0.045;
     scene.add(this.sun); scene.add(this.sun.target);
     this.sunDir = new THREE.Vector3(0, 1, 0);
@@ -139,6 +140,7 @@ export class Sky {
     const s = this.sun.shadow;
     if (mapSize <= 0) { this.sun.castShadow = false; return; }
     this.sun.castShadow = true;
+    this.sun.shadow.camera.layers.enable(1); // dünyanın gölge gövdeleri katman 1'de (ana kamerada görünmez)
     if (s.mapSize.x !== mapSize) { s.mapSize.set(mapSize, mapSize); if (s.map) { s.map.dispose(); s.map = null; } }
     const c = s.camera; c.left = -range; c.right = range; c.top = range; c.bottom = -range; c.near = 1; c.far = 520; c.updateProjectionMatrix();
     s.radius = 2.2;

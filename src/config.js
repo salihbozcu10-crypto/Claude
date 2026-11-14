@@ -1,9 +1,9 @@
 // Ayarlar ve kalite ön ayarları
 export const QUALITY = {
-  low: { label: 'Düşük', tex: 256, scale: 0.7, maxDpr: 1, msaa: 0, shadow: 1024, shadowRange: 42, ao: false, rays: false, bloom: 3, aniso: 2, grass: 0.22, lights: 2, particles: 0.5, terrainLow: true, terrainSegs: 160, skyRays: 5 },
-  medium: { label: 'Orta', tex: 512, scale: 0.85, maxDpr: 1, msaa: 2, shadow: 2048, shadowRange: 55, ao: true, rays: true, bloom: 4, aniso: 4, grass: 0.55, lights: 4, particles: 0.8, terrainSegs: 224, skyRays: 6 },
-  high: { label: 'Yüksek', tex: 512, scale: 1, maxDpr: 1.25, msaa: 4, shadow: 4096, shadowRange: 72, ao: true, rays: true, bloom: 5, aniso: 8, grass: 1, lights: 6, particles: 1, terrainSegs: 256, skyRays: 8 },
-  ultra: { label: 'Ultra', tex: 1024, scale: 1, maxDpr: 2, msaa: 4, shadow: 4096, shadowRange: 85, ao: true, rays: true, bloom: 6, aniso: 16, grass: 1.5, lights: 9, particles: 1.3, terrainSegs: 256, skyRays: 10 },
+  low: { label: 'Düşük', tex: 256, scale: 0.7, maxDpr: 1, msaa: 0, shadow: 1024, shadowRange: 40, shadowEvery: 2, soldierShadow: 26, ao: false, rays: false, bloom: 3, aniso: 2, grass: 0.2, lights: 2, particles: 0.5, terrainLow: true, terrainSegs: 128, skyRays: 5 },
+  medium: { label: 'Orta', tex: 512, scale: 0.85, maxDpr: 1, msaa: 2, shadow: 2048, shadowRange: 55, soldierShadow: 42, ao: true, rays: true, bloom: 4, aniso: 4, grass: 0.55, lights: 4, particles: 0.8, terrainSegs: 224, skyRays: 6 },
+  high: { label: 'Yüksek', tex: 512, scale: 1, maxDpr: 1.25, msaa: 4, shadow: 4096, shadowRange: 72, soldierShadow: 60, ao: true, rays: true, bloom: 5, aniso: 8, grass: 1, lights: 6, particles: 1, terrainSegs: 256, skyRays: 8 },
+  ultra: { label: 'Ultra', tex: 1024, scale: 1, maxDpr: 2, msaa: 4, shadow: 4096, shadowRange: 85, soldierShadow: 80, ao: true, rays: true, bloom: 6, aniso: 16, grass: 1.5, lights: 9, particles: 1.3, terrainSegs: 256, skyRays: 10 },
 };
 
 export const DIFFICULTY = {

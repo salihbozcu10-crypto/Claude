@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { Soldier } from './soldier.js';
 import { clamp, damp, lerp, rr, pick, wrapAngle, angleDelta, gauss } from '../core/utils.js';
+import { isTouch } from '../config.js';
 
 const ST = { IDLE: 0, PATROL: 1, SUSPECT: 2, INVESTIGATE: 3, COMBAT: 4, SEARCH: 5, STUN: 6, DEAD: 7, HOSTAGE: 8, FOLLOW: 9 };
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3();
@@ -230,16 +231,17 @@ class Brain {
   }
 
   updateFollow(dt) {
-    const g = this.g, s = this.s, pl = g.player; s.kneel = damp(s.kneel, 0, 4, dt); s.aim = 0; s.crouch = damp(s.crouch, g.ai.combat ? 0.5 : 0.15, 4, dt);
+    const g = this.g, s = this.s, pl = g.player; s.kneel = damp(s.kneel, 0, 4, dt); s.aim = 0; s.crouch = damp(s.crouch, g.ai.combat ? 1 : 0.15, 4, dt);
+    if (g.time - (s.lastHitT ?? -99) > 6 && s.health < 100) s.health = Math.min(100, s.health + dt * 3); // oyuncunun sardığı yaralar
     const d = s.pos.distanceTo(pl.pos);
     this.farT = d > 28 ? (this.farT || 0) + dt : 0;
     if (this.farT > 8) { const bx = pl.pos.x + Math.sin(pl.yaw) * 4, bz = pl.pos.z + Math.cos(pl.yaw) * 4; const p = g.world.nav.nearestWalkable(bx, bz, 10); if (p) { s.pos.set(p.x, g.world.groundY(p.x, p.z), p.z); this.path = null; } this.farT = 0; }
     this.repathT -= dt;
-    if (d > 3.2) { if (!this.path || this.repathT <= 0) { this.repathT = 0.7; const bx = pl.pos.x + Math.sin(pl.yaw) * 1.6, bz = pl.pos.z + Math.cos(pl.yaw) * 1.6; this.goTo(bx, bz, true); } this.follow(dt, d > 9 ? 5.2 : 3.2); }
+    if (d > 3.6) { if (!this.path || this.repathT <= 0) { this.repathT = 0.7; const bx = pl.pos.x + Math.sin(pl.yaw) * 2.2, bz = pl.pos.z + Math.cos(pl.yaw) * 2.2; this.goTo(bx, bz, true); } this.follow(dt, d > 9 ? 5.2 : 3.2); }
     else { s.speed = damp(s.speed, 0, 8, dt); this.path = null; this.targetYaw = Math.atan2(pl.pos.x - s.pos.x, pl.pos.z - s.pos.z); }
     this.turn(dt, 5);
     // harita dışı arazide yürüme ızgarası yoksa doğrudan izle
-    if (!this.path && d > 3.2) { const nx = (pl.pos.x - s.pos.x) / d, nz = (pl.pos.z - s.pos.z) / d; s.speed = damp(s.speed, d > 9 ? 5.2 : 3.2, 6, dt); s.pos.x += nx * s.speed * dt; s.pos.z += nz * s.speed * dt; s.pos.y = damp(s.pos.y, g.world.groundY(s.pos.x, s.pos.z), 12, dt); this.targetYaw = Math.atan2(nx, nz); s.moveLocal.set(0, 1); }
+    const nav = g.world.nav; if (!this.path && d > 3.2 && (nav.lineClear(s.pos.x, s.pos.z, pl.pos.x, pl.pos.z) || !nav.inside(nav.cx(s.pos.x), nav.cz(s.pos.z)))) { const nx = (pl.pos.x - s.pos.x) / d, nz = (pl.pos.z - s.pos.z) / d; s.speed = damp(s.speed, d > 9 ? 5.2 : 3.2, 6, dt); s.pos.x += nx * s.speed * dt; s.pos.z += nz * s.speed * dt; s.pos.y = damp(s.pos.y, g.world.groundY(s.pos.x, s.pos.z), 12, dt); this.targetYaw = Math.atan2(nx, nz); s.moveLocal.set(0, 1); }
   }
 }
 
@@ -274,7 +276,7 @@ export class AISystem {
   onDeath(b) { if (b.s.team === 'enemy') this.kills++; }
 
   update(dt) {
-    const g = this.g, pl = g.player; this.pathBudget = 2; let anyCombat = false; this.detecting.length = 0;
+    const g = this.g, pl = g.player; this.pathBudget = isTouch ? 1 : 2; let anyCombat = false; this.detecting.length = 0;
     let sh = 0; for (const b of this.brains) if (b.burst > 0 && b.s.alive) sh++; this.shooters = sh;
     for (const b of this.brains) {
       b.update(dt); b.s.update(dt);

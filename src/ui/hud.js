@@ -1,6 +1,7 @@
 // Gösterge paneli: tuval üzerinde pusula, nişan artısı, tespit / hasar yayları, hedef işaretleri; DOM'da metin panelleri
 import * as THREE from 'three';
 import { clamp, wrapAngle, lerp } from '../core/utils.js';
+import { isTouch } from '../config.js';
 
 const $ = (id) => document.getElementById(id);
 const _v = new THREE.Vector3();
@@ -14,7 +15,7 @@ export class HUD {
     this.last = {}; this.toastT = 0; this.warnT = 0; this.radioT = 0; this.objT = 0; this.hitT = 0; this.hitKill = false; this.hitHead = false; this.visible = false; this.spread = 0; this.objKey = '';
     this.resize();
   }
-  resize() { const d = Math.min(devicePixelRatio || 1, 2); this.dpr = d; this.c.width = Math.round(innerWidth * d); this.c.height = Math.round(innerHeight * d); this.padTop = parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0; }
+  resize() { const d = Math.min(devicePixelRatio || 1, isTouch ? 1.25 : 2); this.dpr = d; this.c.width = Math.round(innerWidth * d); this.c.height = Math.round(innerHeight * d); this.padTop = parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0; }
   show(v) { this.visible = v; this.root.hidden = !v; if (!v) this.ctx.clearRect(0, 0, this.c.width, this.c.height); }
   set(key, node, value, prop = 'textContent') { if (this.last[key] !== value) { this.last[key] = value; node[prop] = value; } }
 
@@ -63,7 +64,7 @@ export class HUD {
     c.save(); c.scale(d, d); const w = W / d, h = H / d, cx = w / 2, cy = h / 2;
     const bearing = ((-pl.yaw * 180 / Math.PI) % 360 + 360) % 360;
     // --- pusula şeridi
-    const cw = Math.min(380, w * 0.5), top = (g.input.touch ? 46 : 14) + (this.padTop || 0), ppd = cw / 110;
+    const touch = g.input.touch; const cw = touch ? Math.min(236, w * 0.28) : Math.min(380, w * 0.5), top = (touch ? 8 : 14) + (this.padTop || 0), ppd = cw / 110;
     c.font = '600 12px "Saira Condensed", "Arial Narrow", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
     c.fillStyle = 'rgba(13,17,14,0.5)'; c.fillRect(cx - cw / 2, top, cw, 26);
     c.save(); c.beginPath(); c.rect(cx - cw / 2, top, cw, 44); c.clip();
@@ -76,7 +77,7 @@ export class HUD {
     for (const o of g.mission.objs) { if (o.done || o.locked) continue; const b = Math.atan2(o.pos.x - pl.pos.x, -(o.pos.z - pl.pos.z)) * 180 / Math.PI; const off = clamp(wrapDeg(b - bearing), -54, 54); const x = cx + off * ppd; c.fillStyle = '#e0a23a'; c.beginPath(); c.moveTo(x, top + 27); c.lineTo(x - 5, top + 34); c.lineTo(x + 5, top + 34); c.closePath(); c.fill(); c.fillText(o.letter, x, top + 35); }
     c.restore();
     c.fillStyle = '#e0a23a'; c.fillRect(cx - 0.75, top - 3, 1.5, 9);
-    c.font = '500 11px "IBM Plex Mono", monospace'; c.fillStyle = 'rgba(233,228,212,0.9)'; c.textAlign = 'left'; c.fillText(String(Math.round(bearing) % 360).padStart(3, '0') + '°', cx + cw / 2 + 8, top + 7); c.textAlign = 'center';
+    c.font = '500 11px "IBM Plex Mono", monospace'; c.fillStyle = 'rgba(233,228,212,0.9)'; const bt = String(Math.round(bearing) % 360).padStart(3, '0') + '°'; if (touch) c.fillText(bt, cx, top + 48); else { c.textAlign = 'left'; c.fillText(bt, cx + cw / 2 + 8, top + 7); c.textAlign = 'center'; }
     // --- dünya üzerindeki hedef işaretleri
     c.font = '600 12px "Saira Condensed", "Arial Narrow", sans-serif'; c.textBaseline = 'middle';
     for (const o of g.mission.objs) {

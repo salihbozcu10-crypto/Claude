@@ -55,9 +55,9 @@ export function barrel(B, x, y, z, mat, o = {}) {
 }
 
 let _bagGeo = null;
-function bagGeo() {
+function bagGeo(low) {
   if (_bagGeo) return _bagGeo;
-  const g = new THREE.SphereGeometry(0.5, 9, 6); const P = g.attributes.position;
+  const g = low ? new THREE.SphereGeometry(0.5, 7, 4) : new THREE.SphereGeometry(0.5, 9, 6); const P = g.attributes.position;
   for (let i = 0; i < P.count; i++) {
     let x = P.getX(i), y = P.getY(i), z = P.getZ(i);
     x = Math.sign(x) * Math.pow(Math.abs(x) * 2, 0.55) / 2; z = Math.sign(z) * Math.pow(Math.abs(z) * 2, 0.6) / 2; y = Math.sign(y) * Math.pow(Math.abs(y) * 2, 0.75) / 2;
@@ -71,7 +71,7 @@ function bagGeo() {
 // Kum torbası duvarı: (x1,z1)-(x2,z2) hattı boyunca, tuğla örgüsü
 export function sandbags(B, x1, z1, x2, z2, layers = 4, y0 = 0, o = {}) {
   const M = B.M; const dx = x2 - x1, dz = z2 - z1; const len = Math.hypot(dx, dz); const ry = Math.atan2(-dz, dx);
-  const n = Math.max(1, Math.round(len / 0.6)); const step = len / n; const g = bagGeo();
+  const n = Math.max(1, Math.round(len / 0.6)); const step = len / n; const g = bagGeo(B.low);
   for (let l = 0; l < layers; l++) {
     const off = (l & 1) ? 0.5 : 0; const cnt = (l & 1) ? n - 1 : n;
     for (let i = 0; i < cnt; i++) {
@@ -399,12 +399,12 @@ export function hangingBulb(B, x, yCeil, z, o = {}) {
   B.light(x, yCeil - drop - 0.14, z, { intensity: o.intensity ?? 16, dist: o.dist ?? 9, indoor: true });
 }
 
-let _rockGeos = null;
+let _rockGeos = null, _rockLow = false;
 function rockGeos() {
   if (_rockGeos) return _rockGeos;
   _rockGeos = [];
   for (let v = 0; v < 4; v++) {
-    const g = new THREE.IcosahedronGeometry(1, 2);
+    const g = new THREE.IcosahedronGeometry(1, _rockLow ? 1 : 2);
     const P = g.attributes.position; const tmp = new THREE.Vector3();
     for (let i = 0; i < P.count; i++) {
       tmp.fromBufferAttribute(P, i); const n = noise2(tmp.x * 1.3 + v * 11 + tmp.z * 0.7, tmp.y * 1.3 + tmp.z * 1.1 - v * 5) * 0.34 + noise2(tmp.x * 3.1 + v, tmp.y * 3.1 + tmp.z * 2.7) * 0.12;
@@ -431,7 +431,7 @@ function mergeVerts(g) {
 }
 
 export function rock(B, x, z, s = 1, o = {}) {
-  const M = B.M; const y = o.y ?? B.terrain.heightAt(x, z); const g = rockGeos()[R.int(0, 3)];
+  const M = B.M; _rockLow = !!B.low; const y = o.y ?? B.terrain.heightAt(x, z); const g = rockGeos()[R.int(0, 3)];
   const sc = new THREE.Vector3(s * R.range(0.8, 1.3), s * R.range(0.7, 1.2), s * R.range(0.8, 1.3));
   B.add(M.rock, g, B.mat4(x, y + s * 0.12, z, R.range(0, 6.28), R.range(-0.2, 0.2), R.range(-0.2, 0.2), sc), { col: s > 0.55, uvS: s, surf: SURF.rock });
   if (s > 0.55 && B.nav) B.nav.blockOBB(x, z, sc.x * 1.7, sc.z * 1.7, 0, 0.25);
@@ -439,7 +439,7 @@ export function rock(B, x, z, s = 1, o = {}) {
 
 // Moloz yığını (yıkık duvar)
 export function rubble(B, x, z, r = 2.2, n = 26) {
-  const M = B.M; const y = B.terrain.heightAt(x, z);
+  const M = B.M; _rockLow = !!B.low; const y = B.terrain.heightAt(x, z);
   for (let i = 0; i < n; i++) {
     const a = R.range(0, 6.28), d = Math.sqrt(R()) * r; const px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d; const hgt = (1 - d / r) * 0.5;
     const s = R.range(0.15, 0.5);
@@ -452,8 +452,8 @@ export function rubble(B, x, z, r = 2.2, n = 26) {
 // Jiletli tel sarmalı (duvar üstü)
 export function razorWire(B, x1, y, z1, x2, z2) {
   const M = B.M; const dx = x2 - x1, dz = z2 - z1; const len = Math.hypot(dx, dz); const ry = Math.atan2(-dz, dx);
-  const g = new THREE.TorusGeometry(0.3, 0.007, 3, 12); g.rotateY(Math.PI / 2);
-  const n = Math.floor(len / 0.42);
+  const g = new THREE.TorusGeometry(0.3, 0.007, 3, B.low ? 8 : 12); g.rotateY(Math.PI / 2);
+  const n = Math.floor(len / (B.low ? 0.75 : 0.42));
   for (let i = 0; i < n; i++) { const t = (i + 0.5) / n; B.add(M.galvanized, g, B.mat4(x1 + dx * t, y + 0.3, z1 + dz * t, ry + ((i & 1) ? 0.5 : -0.5), 0, (i % 3) * 0.3)); }
   B.beam(M.galvanized, x1, y + 0.3, z1, x2, y + 0.3, z2, 0.006, {});
   g.dispose();
