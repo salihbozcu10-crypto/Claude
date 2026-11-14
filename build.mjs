@@ -21,7 +21,7 @@ function assemble(js) {
   const markup = readFileSync(resolve(root, 'src/ui/markup.html'), 'utf8');
   // Satır içi betikte </script ve <!-- dizilerini etkisizleştir
   const safeJs = js.replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
-  const head = `<title>Sessiz Vadi Harekâtı</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n${FONTS}\n<style>\n${css}\n</style>`;
+  const head = `<title>Özel Kuvvetler</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n${FONTS}\n<style>\n${css}\n</style>`;
   const body = `${markup}\n<script>\n${safeJs}\n</script>`;
   const standalone = `<!doctype html>\n<html lang="tr">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">\n<meta name="theme-color" content="#0b0e0c">\n${head}\n</head>\n<body>\n${body}\n</body>\n</html>\n`;
   writeFileSync(resolve(root, 'index.html'), standalone);

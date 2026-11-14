@@ -40,13 +40,15 @@ export class Input {
     addEventListener('wheel', (e) => { if (this.enabled) this.wheel += Math.sign(e.deltaY); }, { passive: true });
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === canvas;
+      if (this.locked) this.lockFails = 0;
       if (!this.locked) this.down.clear();
       if (this.onLockChange) this.onLockChange(this.locked);
     });
     document.addEventListener('pointerlockerror', () => this._lockFailed());
   }
 
-  _lockFailed() { this.lockFails++; if (this.lockFails >= 1) { this.freeLook = true; if (this.onLockChange) this.onLockChange(true); } }
+  // Kilit birkaç kez üst üste reddedilirse (ör. gömülü görünüm) kilitsiz serbest bakışa geç
+  _lockFailed() { this.lockFails++; if (this.lockFails >= 3 || !this.canvas.requestPointerLock) { this.freeLook = true; if (this.onLockChange) this.onLockChange(true); } }
 
   requestLock() {
     if (this.touch || this.locked) return;

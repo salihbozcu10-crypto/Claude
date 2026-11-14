@@ -76,11 +76,11 @@ export class HUD {
     for (const o of g.mission.objs) { if (o.done || o.locked) continue; const b = Math.atan2(o.pos.x - pl.pos.x, -(o.pos.z - pl.pos.z)) * 180 / Math.PI; const off = clamp(wrapDeg(b - bearing), -54, 54); const x = cx + off * ppd; c.fillStyle = '#e0a23a'; c.beginPath(); c.moveTo(x, top + 27); c.lineTo(x - 5, top + 34); c.lineTo(x + 5, top + 34); c.closePath(); c.fill(); c.fillText(o.letter, x, top + 35); }
     c.restore();
     c.fillStyle = '#e0a23a'; c.fillRect(cx - 0.75, top - 3, 1.5, 9);
-    c.font = '500 11px "IBM Plex Mono", monospace'; c.fillStyle = 'rgba(233,228,212,0.9)'; c.fillText(String(Math.round(bearing)).padStart(3, '0') + '°', cx, top - 14 < 2 ? top + 48 : top - 14);
+    c.font = '500 11px "IBM Plex Mono", monospace'; c.fillStyle = 'rgba(233,228,212,0.9)'; c.textAlign = 'left'; c.fillText(String(Math.round(bearing) % 360).padStart(3, '0') + '°', cx + cw / 2 + 8, top + 7); c.textAlign = 'center';
     // --- dünya üzerindeki hedef işaretleri
     c.font = '600 12px "Saira Condensed", "Arial Narrow", sans-serif'; c.textBaseline = 'middle';
     for (const o of g.mission.objs) {
-      if (o.done || o.locked) continue; _v.set(o.pos.x, o.pos.y + 0.5, o.pos.z); const dist = _v.distanceTo(cam.position); _v.project(cam);
+      if (o.done || o.locked) continue; _v.set(o.pos.x, o.pos.y + 0.5, o.pos.z); const dist = _v.distanceTo(cam.position); if (dist > 75 && o.kind !== 'exfil') continue; _v.project(cam);
       if (_v.z > 1 || Math.abs(_v.x) > 0.96 || Math.abs(_v.y) > 0.92) continue; const x = (_v.x * 0.5 + 0.5) * w, y = (-_v.y * 0.5 + 0.5) * h;
       const a = dist < 3 ? 0.25 : 0.8; c.globalAlpha = a; c.strokeStyle = '#e0a23a'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, y - 9); c.lineTo(x + 9, y); c.lineTo(x, y + 9); c.lineTo(x - 9, y); c.closePath(); c.stroke();
       c.fillStyle = '#e0a23a'; c.fillText(o.letter, x, y + 0.5); c.fillStyle = 'rgba(233,228,212,0.9)'; c.fillText(Math.round(dist) + ' m', x, y + 20); c.globalAlpha = 1;

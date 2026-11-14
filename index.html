@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b0e0c">
-<title>Sessiz Vadi Harekâtı</title>
+<title>Özel Kuvvetler</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700&family=Saira+Stencil+One&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -27,6 +27,7 @@
   --gt: max(14px, env(safe-area-inset-top, 0px));
   --gb: max(14px, env(safe-area-inset-bottom, 0px));
 }
+[hidden] { display: none !important; }
 html, body { height: 100%; margin: 0; background: var(--ink); color: var(--bone); overflow: hidden; font-family: var(--f-ui); font-size: 17px; line-height: 1.35; -webkit-user-select: none; user-select: none; touch-action: none; overscroll-behavior: none; }
 #game, #hudc { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #hudc { pointer-events: none; z-index: 2; }
@@ -211,8 +212,8 @@ input[type=checkbox] { accent-color: var(--amber); width: 18px; height: 18px; }
 
 <section id="loading" class="screen">
   <div class="col">
-    <p class="eyebrow">ÖZEL KUVVETLER · TAKTİK NİŞANCI</p>
-    <h1>SESSİZ VADİ<br>HAREKÂTI</h1>
+    <p class="eyebrow">SESSİZ VADİ HAREKÂTI · TAKTİK NİŞANCI</p>
+    <h1>ÖZEL<br>KUVVETLER</h1>
     <p id="load-text" class="mono">Harekât bölgesi hazırlanıyor…</p>
     <div class="progress"><i id="load-bar"></i></div>
     <p id="load-tip" class="tip">Dokular, arazi ve ışık haritası cihazında üretiliyor. İlk açılış birkaç saniye sürer.</p>
@@ -221,8 +222,8 @@ input[type=checkbox] { accent-color: var(--amber); width: 18px; height: 18px; }
 
 <section id="menu" class="screen scrim" hidden>
   <div class="col">
-    <p class="eyebrow">ÖZEL KUVVETLER · TAKTİK NİŞANCI</p>
-    <h1>SESSİZ VADİ<br>HAREKÂTI</h1>
+    <p class="eyebrow">SESSİZ VADİ HAREKÂTI · TAKTİK NİŞANCI</p>
+    <h1>ÖZEL<br>KUVVETLER</h1>
     <p class="lead">Şafak sökerken düşman hattının gerisine tek başına sız. Telsiz direğini sustur, istihbaratı al, rehineyi çıkar.</p>
     <nav class="stack">
       <button id="btn-start" class="btn primary">Harekâta başla</button>
@@ -236,7 +237,7 @@ input[type=checkbox] { accent-color: var(--amber); width: 18px; height: 18px; }
 <section id="brief" class="screen scrim" hidden>
   <div class="col wide">
     <p class="eyebrow">GÖREV EMRİ · KARTAL-1</p>
-    <h2>Sessiz Vadi</h2>
+    <h2>Sessiz Vadi Harekâtı</h2>
     <p class="lead">Silah kaçakçısı paralı askerler eski bir tesisi üs olarak kullanıyor. İçeride yaklaşık yirmi beş silahlı var. Güney sırtından başlıyorsun; batıdaki kuru dere yatağı ve yıkık duvar gözlerden uzak bir giriş sağlar.</p>
     <div class="grid2">
       <div>
@@ -316,7 +317,7 @@ input[type=checkbox] { accent-color: var(--amber); width: 18px; height: 18px; }
 <section id="pause" class="screen scrim" hidden>
   <div class="col">
     <p class="eyebrow">DURAKLATILDI</p>
-    <h2>Sessiz Vadi</h2>
+    <h2>Özel Kuvvetler</h2>
     <div id="pause-objs" class="objlist"></div>
     <nav class="stack">
       <button id="btn-resume" class="btn primary">Devam et</button>
@@ -14549,6 +14550,84 @@ input[type=checkbox] { accent-color: var(--amber); width: 18px; height: 18px; }
      */
     static fromJSON(data) {
       return new _PlaneGeometry(data.width, data.height, data.widthSegments, data.heightSegments);
+    }
+  };
+  var RingGeometry = class _RingGeometry extends BufferGeometry {
+    /**
+     * Constructs a new ring geometry.
+     *
+     * @param {number} [innerRadius=0.5] - The inner radius of the ring.
+     * @param {number} [outerRadius=1] - The outer radius of the ring.
+     * @param {number} [thetaSegments=32] - Number of segments. A higher number means the ring will be more round. Minimum is `3`.
+     * @param {number} [phiSegments=1] - Number of segments per ring segment. Minimum is `1`.
+     * @param {number} [thetaStart=0] - Starting angle in radians.
+     * @param {number} [thetaLength=Math.PI*2] - Central angle in radians.
+     */
+    constructor(innerRadius = 0.5, outerRadius = 1, thetaSegments = 32, phiSegments = 1, thetaStart = 0, thetaLength = Math.PI * 2) {
+      super();
+      this.type = "RingGeometry";
+      this.parameters = {
+        innerRadius,
+        outerRadius,
+        thetaSegments,
+        phiSegments,
+        thetaStart,
+        thetaLength
+      };
+      thetaSegments = Math.max(3, thetaSegments);
+      phiSegments = Math.max(1, phiSegments);
+      const indices = [];
+      const vertices = [];
+      const normals = [];
+      const uvs = [];
+      let radius = innerRadius;
+      const radiusStep = (outerRadius - innerRadius) / phiSegments;
+      const vertex2 = new Vector3();
+      const uv = new Vector2();
+      for (let j = 0; j <= phiSegments; j++) {
+        for (let i = 0; i <= thetaSegments; i++) {
+          const segment = thetaStart + i / thetaSegments * thetaLength;
+          vertex2.x = radius * Math.cos(segment);
+          vertex2.y = radius * Math.sin(segment);
+          vertices.push(vertex2.x, vertex2.y, vertex2.z);
+          normals.push(0, 0, 1);
+          uv.x = (vertex2.x / outerRadius + 1) / 2;
+          uv.y = (vertex2.y / outerRadius + 1) / 2;
+          uvs.push(uv.x, uv.y);
+        }
+        radius += radiusStep;
+      }
+      for (let j = 0; j < phiSegments; j++) {
+        const thetaSegmentLevel = j * (thetaSegments + 1);
+        for (let i = 0; i < thetaSegments; i++) {
+          const segment = i + thetaSegmentLevel;
+          const a = segment;
+          const b = segment + thetaSegments + 1;
+          const c = segment + thetaSegments + 2;
+          const d = segment + 1;
+          indices.push(a, b, d);
+          indices.push(b, c, d);
+        }
+      }
+      this.setIndex(indices);
+      this.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+      this.setAttribute("normal", new Float32BufferAttribute(normals, 3));
+      this.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+    }
+    copy(source) {
+      super.copy(source);
+      this.parameters = Object.assign({}, source.parameters);
+      return this;
+    }
+    /**
+     * Factory method for creating an instance of this class from the given
+     * JSON object.
+     *
+     * @param {Object} data - A JSON object representing the serialized geometry.
+     * @return {RingGeometry} A new instance.
+     */
+    static fromJSON(data) {
+      return new _RingGeometry(data.innerRadius, data.outerRadius, data.thetaSegments, data.phiSegments, data.thetaStart, data.thetaLength);
     }
   };
   var SphereGeometry = class _SphereGeometry extends BufferGeometry {
@@ -29971,7 +30050,7 @@ void main() {
         y += dy;
       }
     }
-    const base = o.base || [0.085, 0.086, 0.092];
+    const base = o.base || [0.17, 0.172, 0.18];
     const st = o.stipple ? worley(S, 90, seed + 9) : null;
     for (let i = 0; i < T.n; i++) {
       const v = 1 + (mid[i] - 0.5) * 0.3 + (fine[i] - 0.5) * 0.25;
@@ -30589,14 +30668,14 @@ void main() {
     g.fillStyle = "rgba(255,70,45,1)";
     g.shadowColor = "rgba(255,40,20,0.9)";
     g.shadowBlur = 8;
-    g.lineWidth = 5;
+    g.lineWidth = 9;
     g.beginPath();
     g.arc(128, 128, 84, 0, 6.3);
     g.stroke();
     g.beginPath();
-    g.arc(128, 128, 6, 0, 6.3);
+    g.arc(128, 128, 10, 0, 6.3);
     g.fill();
-    g.lineWidth = 6;
+    g.lineWidth = 9;
     for (const a of [0, 1.5708, 3.1416, 4.7124]) {
       g.beginPath();
       g.moveTo(128 + Math.cos(a) * 84, 128 + Math.sin(a) * 84);
@@ -30618,7 +30697,7 @@ void main() {
     ["galvanized", () => corrugated(lo, 67, { ridges: 10, galvanized: true, rust: 0.3 })],
     ["paint", () => paintedMetal(lo, 71)],
     ["gunmetal", () => gunmetal(lo, 83, {})],
-    ["polymer", () => gunmetal(lo, 89, { base: [0.055, 0.055, 0.06], metal: 0, rough: 0.6, stipple: true, wear: 0.15, dust: 0.3 })],
+    ["polymer", () => gunmetal(lo, 89, { base: [0.115, 0.115, 0.12], metal: 0, rough: 0.58, stipple: true, wear: 0.15, dust: 0.3 })],
     ["steel", () => gunmetal(lo, 91, { base: [0.5, 0.5, 0.52], metal: 1, rough: 0.4, wear: 0.5, dust: 0.6 })],
     ["polymerTan", () => gunmetal(lo, 93, { base: [0.5, 0.41, 0.3], metal: 0, rough: 0.64, stipple: true, wear: 0.12, dust: 0.25 })],
     ["wood", () => wood(S, 97, { planks: 4, weather: 0.35 })],
@@ -30881,7 +30960,7 @@ void main() {
       gloveDark: V(pbr(cl, { color: c(0.13, 0.13, 0.13) })),
       brass: V(new MeshStandardMaterial({ color: c(0.78, 0.6, 0.28), roughness: 0.3, metalness: 1 })),
       lens: V(new MeshStandardMaterial({ color: c(0.05, 0.08, 0.09), roughness: 0.05, metalness: 0, transparent: true, opacity: 0.22, depthWrite: false })),
-      watch: V(new MeshBasicMaterial({ color: new Color(0.25, 1.1, 0.5) })),
+      watch: V(new MeshBasicMaterial({ color: new Color(0.06, 0.22, 0.1) })),
       skin: V(new MeshStandardMaterial({ color: c(0.7, 0.5, 0.38), roughness: 0.6 })),
       olive: V(pbr(clone(T.paint, 3), { color: c(0.24, 0.27, 0.19) })),
       bandage: V(pbr(cl, { color: c(0.85, 0.84, 0.78) }))
@@ -31473,7 +31552,7 @@ void main() {
   }
   // hasar: kenarlarda k\u0131rm\u0131z\u0131 nab\u0131z
   float dmgMask = smoothstep(0.05, 0.42, edge);
-  outc = mix(outc, vec3(0.42, 0.015, 0.01), clamp(dmgMask * (uDamage * 0.85 + uHurt * 0.3), 0.0, 0.85));
+  outc = mix(outc, vec3(0.42, 0.015, 0.01), clamp(dmgMask * (uDamage * 0.6 + uHurt * 0.26), 0.0, 0.62));
   // fla\u015F bombas\u0131 beyazl\u0131\u011F\u0131
   outc = mix(outc, vec3(1.0), clamp(uFlash, 0.0, 1.0));
   // gren (ayn\u0131 zamanda bantlanmay\u0131 k\u0131rar)
@@ -37641,6 +37720,172 @@ void main() {
     F.box(M.paintWhite, width / 2 - 0.5 - 2.6, 1.02, -1.8, 5.4, 0.1, 0.1, { rz: -1.05, col: false });
     for (let i = 0; i < 4; i++) F.box(M.paintRed, width / 2 - 0.5 - (0.7 + i * 1.25) * Math.cos(1.05), 1.02 + (0.7 + i * 1.25) * Math.sin(1.05), -1.8, 0.5, 0.104, 0.104, { rz: -1.05, col: false });
   }
+  function prismGeo(profile, len) {
+    const pos = [], nrm = [], uv = [], idx = [];
+    const n = profile.length;
+    let acc = 0;
+    for (let i = 0; i < n; i++) {
+      const a = profile[i], b = profile[(i + 1) % n];
+      const dx = b[0] - a[0], dy = b[1] - a[1];
+      const l = Math.hypot(dx, dy);
+      const nx = dy / l, ny = -dx / l;
+      const base = pos.length / 3;
+      pos.push(a[0], a[1], -len / 2, b[0], b[1], -len / 2, b[0], b[1], len / 2, a[0], a[1], len / 2);
+      for (let k = 0; k < 4; k++) nrm.push(nx, ny, 0);
+      uv.push(0, acc, 0, acc + l, len, acc + l, len, acc);
+      acc += l;
+      idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+    for (const sgn of [-1, 1]) {
+      const base = pos.length / 3;
+      for (const p of profile) {
+        pos.push(p[0], p[1], sgn * len / 2);
+        nrm.push(0, 0, sgn);
+        uv.push(p[0], p[1]);
+      }
+      for (let i = 1; i < n - 1; i++) {
+        if (sgn > 0) idx.push(base, base + i, base + i + 1);
+        else idx.push(base, base + i + 1, base + i);
+      }
+    }
+    const g = new BufferGeometry();
+    g.setAttribute("position", new Float32BufferAttribute(pos, 3));
+    g.setAttribute("normal", new Float32BufferAttribute(nrm, 3));
+    g.setAttribute("uv", new Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    return g;
+  }
+  var _jersey = null;
+  function jersey(B2, x, z, ry = 0) {
+    const M = B2.M;
+    const y = B2.terrain.heightAt(x, z);
+    if (!_jersey) _jersey = prismGeo([[-0.3, 0], [0.3, 0], [0.3, 0.09], [0.12, 0.32], [0.09, 0.82], [-0.09, 0.82], [-0.12, 0.32], [-0.3, 0.09]], 3);
+    B2.add(M.concrete, _jersey, B2.mat4(x, y, z, ry), { grime: true });
+    B2.collide(x, y, z, 0.5, 0.82, 3, { ry, surf: SURF.concrete });
+  }
+  var _pipe = null;
+  function pipeGeo() {
+    if (_pipe) return _pipe;
+    const r = 0.62, ri = 0.54, len = 2.4, seg2 = 18;
+    const parts = [];
+    const outer = new CylinderGeometry(r, r, len, seg2, 1, true);
+    const inner = new CylinderGeometry(ri, ri, len, seg2, 1, true);
+    {
+      const I = inner.index.array;
+      for (let i = 0; i < I.length; i += 3) {
+        const t = I[i];
+        I[i] = I[i + 1];
+        I[i + 1] = t;
+      }
+      const N2 = inner.attributes.normal.array;
+      for (let i = 0; i < N2.length; i++) N2[i] = -N2[i];
+    }
+    const c1 = new RingGeometry(ri, r, seg2);
+    c1.rotateX(-Math.PI / 2);
+    c1.translate(0, len / 2, 0);
+    const c2 = new RingGeometry(ri, r, seg2);
+    c2.rotateX(Math.PI / 2);
+    c2.translate(0, -len / 2, 0);
+    for (const g of [outer, inner, c1, c2]) {
+      const U = g.attributes.uv;
+      for (let i = 0; i < U.count; i++) U.setXY(i, U.getX(i) * 3.6, U.getY(i) * 2.4);
+      g.rotateX(Math.PI / 2);
+      parts.push(g);
+    }
+    const pos = [], nrm = [], uv = [], idx = [];
+    for (const g of parts) {
+      const base = pos.length / 3;
+      pos.push(...g.attributes.position.array);
+      nrm.push(...g.attributes.normal.array);
+      uv.push(...g.attributes.uv.array);
+      for (const i of g.index.array) idx.push(base + i);
+      g.dispose();
+    }
+    _pipe = new BufferGeometry();
+    _pipe.setAttribute("position", new Float32BufferAttribute(pos, 3));
+    _pipe.setAttribute("normal", new Float32BufferAttribute(nrm, 3));
+    _pipe.setAttribute("uv", new Float32BufferAttribute(uv, 2));
+    _pipe.setIndex(idx);
+    return _pipe;
+  }
+  function pipeStack(B2, x, z, ry = 0, n = 3) {
+    const M = B2.M;
+    const y = B2.terrain.heightAt(x, z);
+    const F = frame(B2, x, y, z, ry);
+    const g = pipeGeo();
+    const slots = n >= 3 ? [[-0.64, 0.62], [0.64, 0.62], [0, 1.72]] : n === 2 ? [[-0.64, 0.62], [0.64, 0.62]] : [[0, 0.62]];
+    for (const [lx, ly] of slots) {
+      F.add(M.concreteDark, g, lx, ly, 0, {});
+      F.collide(lx, ly - 0.62, 0, 1.2, 0.1, 2.4, { nav: false });
+      F.collide(lx, ly + 0.52, 0, 1.2, 0.1, 2.4, { nav: false });
+      F.collide(lx - 0.58, ly - 0.5, 0, 0.08, 1, 2.4, { nav: false });
+      F.collide(lx + 0.58, ly - 0.5, 0, 0.08, 1, 2.4, { nav: false });
+    }
+    B2.nav.blockOBB(x, z, n >= 2 ? 2.6 : 1.3, 2.4, ry, 0.3);
+  }
+  function carport(B2, x, z, ry, w, d, h = 3.4) {
+    const M = B2.M;
+    const y = B2.terrain.heightAt(x, z);
+    const F = frame(B2, x, y, z, ry);
+    const nx = Math.max(2, Math.round(w / 5) + 1);
+    for (let i = 0; i < nx; i++) for (const sz of [-1, 1]) {
+      const lx = -w / 2 + i * w / (nx - 1);
+      F.box(M.galvanized, lx, 0, sz * d / 2, 0.14, h + (sz > 0 ? 0.35 : -0.05), 0.14, { grime: false, navPad: 0.15 });
+      F.box(M.concrete, lx, 0, sz * d / 2, 0.45, 0.2, 0.45, { col: false });
+    }
+    for (let i = 0; i < nx; i++) {
+      const lx = -w / 2 + i * w / (nx - 1);
+      F.beam(M.galvanized, [lx, h - 0.05, -d / 2], [lx, h + 0.35, d / 2], 0.05);
+    }
+    for (const sz of [-1, 0, 1]) F.beam(M.galvanized, [-w / 2, h + 0.15 + sz * 0.2, sz * d / 2], [w / 2, h + 0.15 + sz * 0.2, sz * d / 2], 0.04);
+    F.box(M.roofMetal, 0, h + 0.2, 0, w + 1, 0.05, d + 1.2, { rx: -Math.atan2(0.4, d), nav: false, grime: false, surf: SURF.metal });
+  }
+  function targetStand(B2, x, z, ry = 0) {
+    const M = B2.M;
+    const y = B2.terrain.heightAt(x, z);
+    const F = frame(B2, x, y, z, ry);
+    F.beam(M.woodOld, [-0.3, 0, 0], [-0.3, 1.75, 0], 0.025);
+    F.beam(M.woodOld, [0.3, 0, 0], [0.3, 1.75, 0], 0.025);
+    F.beam(M.woodOld, [-0.42, 0.02, 0.25], [-0.3, 0.5, 0], 0.02);
+    F.beam(M.woodOld, [0.42, 0.02, 0.25], [0.3, 0.5, 0], 0.02);
+    F.box(M.woodOld, 0, 0.85, 0.02, 0.62, 0.9, 0.015, { col: false, grime: false, uvRot: true });
+    F.box(M.paintDark, 0, 0.92, 0.031, 0.36, 0.52, 4e-3, { col: false, grime: false });
+    F.box(M.paintDark, 0, 1.44, 0.031, 0.17, 0.2, 4e-3, { col: false, grime: false });
+    F.box(M.paintWhite, 0, 1.12, 0.034, 0.09, 0.09, 3e-3, { col: false, grime: false });
+    F.collide(0, 0.85, 0.02, 0.62, 0.9, 0.02, { surf: SURF.wood, nav: false });
+  }
+  function spool(B2, x, z, upright = true, ry = 0, s = 1) {
+    const M = B2.M;
+    const y = B2.terrain.heightAt(x, z);
+    if (upright) {
+      B2.cyl(M.woodOld, x, y, z, 0.62 * s, 0.06, { seg: 16, col: false });
+      B2.cyl(M.woodOld, x, y + 0.06, z, 0.3 * s, 0.62 * s, { seg: 12, col: false });
+      B2.cyl(M.woodOld, x, y + 0.06 + 0.62 * s, z, 0.62 * s, 0.06, { seg: 16, col: false });
+      B2.collide(x, y, z, 1.1 * s, 0.74 * s + 0.06, 1.1 * s, { surf: SURF.wood, ry: 0.4 });
+    } else {
+      const c = Math.cos(ry), sn = Math.sin(ry);
+      for (const t of [-0.34, 0.34]) B2.cyl(M.woodOld, x + t * s * c, y + 0.62 * s, z - t * s * sn, 0.62 * s, 0.06, { axis: "x", ry, seg: 16, col: false });
+      B2.cyl(M.woodOld, x, y + 0.62 * s, z, 0.3 * s, 0.68 * s, { axis: "x", ry, seg: 12, col: false });
+      B2.collide(x, y, z, 0.8 * s, 1.24 * s, 1.2 * s, { surf: SURF.wood, ry });
+    }
+  }
+  function mound(B2, x, z, r = 1.6, h = 0.9, mat) {
+    const M = B2.M;
+    const y = B2.terrain.heightAt(x, z);
+    const g = new SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    const P = g.attributes.position;
+    for (let i = 0; i < P.count; i++) {
+      const px = P.getX(i), py = P.getY(i), pz = P.getZ(i);
+      const k = 1 + noise2(px * 2.1 + x, pz * 2.1 + z) * 0.22;
+      P.setXYZ(i, px * r * k, Math.pow(py, 0.8) * h, pz * r * k);
+    }
+    g.computeVertexNormals();
+    const U = g.attributes.uv;
+    for (let i = 0; i < U.count; i++) U.setXY(i, P.getX(i) * 0.7, P.getZ(i) * 0.7);
+    B2.add(mat || M.burlap, g, B2.mat4(x, y - 0.03, z, R.range(0, 6)), { col: true, surf: SURF.sand });
+    g.dispose();
+    B2.nav.blockOBB(x, z, r * 1.5, r * 1.5, 0, 0.2);
+  }
 
   // src/world/vegetation.js
   function cardGeo(uv0, uv1, w, h, n, upNormals = true) {
@@ -38204,8 +38449,9 @@ void main() {
       data.enemies.push({ x: -27, z: -37, yaw: 2.4, role: "patrol", route: [[-27, -37], [-18, -36], [-18, -46], [-34, -47], [-36, -37]] });
     }
     pickup(B2, 7, 15, 0.35, M.paintTan, { gun: true, rollbar: true });
-    pickup(B2, 14, 24, -1.25, M.paintWhite, { cargo: true });
-    truck(B2, 22.5, 13, 0.08);
+    pickup(B2, 14, 21.5, -1.25, M.paintWhite, { cargo: true });
+    truck(B2, 20.5, 12, 0.08);
+    carport(B2, 14, 19, 0, 20, 12, 3.5);
     truck(B2, 21, -4, 1.7, { cover: false });
     fuelTank(B2, -22, 28, 0.2);
     for (const [x, z, m] of [[-18.4, 30.6, M.paintRed], [-17.6, 29.9, M.paintRed], [-18.6, 29.6, M.paintBlue], [-25.6, 30.8, M.paintOlive]]) barrel(B2, x, 0, z, m);
@@ -38240,10 +38486,38 @@ void main() {
     chair(B2, 16.2, 0, -12, 0.1);
     chair(B2, 18.8, 0, -10.3, 3.2);
     chair(B2, 19.3, 0, -12.4, -0.2);
-    tent(B2, 4, 34, 1.5, M.canvasTan);
-    tent(B2, -6, 30, 1.62, M.canvasOlive);
+    tent(B2, -16, 38.5, 1.5, M.canvasTan);
+    tent(B2, -16, 32, 1.62, M.canvasOlive);
+    tent(B2, -24, 38.5, 1.55, M.canvasOlive);
+    tent(B2, -24, 32, 1.6, M.canvasTan);
     pallet(B2, 9, 0, 31, 0.3);
     crateStack(B2, 9, 31, 0.3, 2, 0.12);
+    jersey(B2, -3.6, 40.5, Math.PI / 2);
+    jersey(B2, 3.6, 34.5, Math.PI / 2 + 0.05);
+    jersey(B2, -3.4, 28.5, Math.PI / 2 - 0.04);
+    jersey(B2, 9.5, 40, 0.1);
+    pipeStack(B2, -54, -3, 0.3, 3);
+    pipeStack(B2, 31, 37, 1.25, 2);
+    pipeStack(B2, -17, 63, 0.4, 3);
+    spool(B2, -9.5, 11.2, true);
+    spool(B2, 33, 7, false, 0.6);
+    spool(B2, -40, 12, false, 1.9, 0.8);
+    mound(B2, 47, -7, 2.4, 1.3, M.rock);
+    mound(B2, 51, -9, 1.7, 0.9, M.rock);
+    mound(B2, -41, 6, 2, 1);
+    for (let i = 0; i < 5; i++) targetStand(B2, 60.6, 31 + i * 3, -Math.PI / 2);
+    sandbags(B2, 62.4, 29.5, 62.4, 44.5, 6);
+    table(B2, 49, 0, 36.5, 1.57, 2.2, 0.8);
+    crate(B2, 49, 0.765, 36.5, 0.6, 1.5, "ammo");
+    sandbags(B2, 46.5, 32, 46.5, 41, 2);
+    rubble(B2, 58, -22, 2, 16);
+    barrel(B2, 59.2, 0, -23.4, M.rust, { lying: true, ry: 0.4 });
+    barrel(B2, 56.6, 0, -20.6, M.rust);
+    hesco(B2, 14.5, -16.5, 0, 4);
+    hesco(B2, 24.5, -16.5, 0, 3);
+    sandbags(B2, 27, -34.5, 27, -31.5, 4);
+    sandbags(B2, 27, -26.5, 27, -24, 4);
+    B2.box(M.concreteDark, 0, -0.02, -23.4, 24, 0.07, 6.5, { nav: false, grime: false, col: false });
     tireStack(B2, 17.5, 28.5, 4);
     tireStack(B2, 18.6, 28.9, 2);
     tireStack(B2, 27, 17, 3);
@@ -39741,14 +40015,16 @@ void main() {
       }, { passive: true });
       document.addEventListener("pointerlockchange", () => {
         this.locked = document.pointerLockElement === canvas;
+        if (this.locked) this.lockFails = 0;
         if (!this.locked) this.down.clear();
         if (this.onLockChange) this.onLockChange(this.locked);
       });
       document.addEventListener("pointerlockerror", () => this._lockFailed());
     }
+    // Kilit birkaç kez üst üste reddedilirse (ör. gömülü görünüm) kilitsiz serbest bakışa geç
     _lockFailed() {
       this.lockFails++;
-      if (this.lockFails >= 1) {
+      if (this.lockFails >= 3 || !this.canvas.requestPointerLock) {
         this.freeLook = true;
         if (this.onLockChange) this.onLockChange(true);
       }
@@ -40434,7 +40710,7 @@ void main() {
   };
   function reticleMaterial(tex) {
     return new ShaderMaterial({
-      uniforms: { tRet: { value: tex }, uVmProj: globalUniforms.uVmProj, uAimF: { value: new Vector3(0, 0, -1) }, uAimR: { value: new Vector3(1, 0, 0) }, uAimU: { value: new Vector3(0, 1, 0) }, uSize: { value: 0.04 }, uBright: { value: 3.2 } },
+      uniforms: { tRet: { value: tex }, uVmProj: globalUniforms.uVmProj, uAimF: { value: new Vector3(0, 0, -1) }, uAimR: { value: new Vector3(1, 0, 0) }, uAimU: { value: new Vector3(0, 1, 0) }, uSize: { value: 0.052 }, uBright: { value: 3.2 } },
       vertexShader: (
         /* glsl */
         `uniform mat4 uVmProj; varying vec3 vView; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vView = mv.xyz; gl_Position = uVmProj * mv; gl_Position.z = 0.75 * gl_Position.z - 0.25 * gl_Position.w; }`
@@ -40473,7 +40749,7 @@ void main() {
         P.cap(V.sleeve, [-0.07, -0.085, 0.095], [-0.34, -0.29, 0.46], 0.043, 0.06);
         P.cap(V.gloveDark, [-0.066, -0.082, 0.09], [-0.078, -0.092, 0.11], 0.044, 0.044);
         P.rbox(V.polymer, 0.04, 0.014, 0.042, -0.082, -0.056, 0.115, 4e-3, 0.5, 0, 0.66);
-        P.box(V.watch, 0.026, 2e-3, 0.026, -0.0865, -0.0495, 0.1118, 0.5, 0, 0.66);
+        P.box(V.watch, 0.018, 15e-4, 0.012, -0.0865, -0.0492, 0.1118, 0.5, 0, 0.66);
       } else {
         wrapFingers(P, V.glove, 0, () => 0, 0.03, [-0.012, -0.031, -0.05], [200, 150, 96, 42, 0], 92e-4);
         P.chain(V.glove, [[-0.028, 0.012, 0.02], [-0.026, 0.02, -0.01], [-0.022, 0.022, -0.04]], 98e-4);
@@ -40679,9 +40955,9 @@ void main() {
       sound: "rifleSup",
       noise: 24,
       kick: { pitch: 0.0105, yaw: 42e-4 },
-      hip: [0.084, -0.119, -0.112],
-      hipRot: [0, 0.03, 0],
-      adsZ: -0.052,
+      hip: [0.098, -0.132, -0.3],
+      hipRot: [0, 0.045, 0],
+      adsZ: -0.15,
       zoom: 1.32,
       spreadHip: 0.02,
       spreadAds: 9e-4,
@@ -40703,9 +40979,9 @@ void main() {
       sound: "pistolSup",
       noise: 15,
       kick: { pitch: 0.017, yaw: 6e-3 },
-      hip: [0.068, -0.108, -0.21],
-      hipRot: [0, 0.02, 0],
-      adsZ: -0.25,
+      hip: [0.075, -0.115, -0.36],
+      hipRot: [0, 0.03, 0],
+      adsZ: -0.42,
       zoom: 1.12,
       spreadHip: 0.026,
       spreadAds: 35e-4,
@@ -42330,6 +42606,11 @@ void main() {
       if (this.burst <= 0) {
         this.burstCool -= dt;
         if (this.burstCool <= 0) {
+          if (this.sys.shooters >= (g.diff.shooters || 3)) {
+            this.burstCool = rr(0.15, 0.5);
+            return;
+          }
+          this.sys.shooters++;
           this.burst = 2 + Math.random() * 4 | 0;
           this.shotCool = 0;
         }
@@ -42348,7 +42629,7 @@ void main() {
       target.x += pl.hv.x * dist / 715;
       target.z += pl.hv.z * dist / 715;
       const dir = _c4.copy(target).sub(from).normalize();
-      let sigma = 0.0115 * g.diff.aim * (1 + dist / 70) * (1 + pl.speed * 0.2) * (this.firstBurst ? 1.9 : 1) * (1 + this.suppress * 1.4) * (pl.crouching ? 1.12 : 1) * (s.speed > 0.5 ? 1.6 : 1);
+      let sigma = 0.0115 * g.diff.aim * (1 + dist / 70) * (1 + pl.speed * 0.2) * (this.firstBurst ? 2.6 : 1) * (1 + this.suppress * 1.4) * (pl.crouching ? 1.12 : 1) * (s.speed > 0.5 ? 1.6 : 1);
       if (this.elevated) sigma *= 1.15;
       dir.x += gauss() * sigma;
       dir.y += gauss() * sigma * 0.8;
@@ -42401,7 +42682,7 @@ void main() {
       }
       if (this.det >= 1 && this.state !== ST.COMBAT) {
         this.set(ST.COMBAT);
-        this.react = rr(0.35, 0.8) * g.diff.react;
+        this.react = rr(0.55, 1.1) * g.diff.react;
         this.firstBurst = true;
         this.sys.shout(this, 32);
       } else if (this.det > 0.4 && (this.state === ST.IDLE || this.state === ST.PATROL)) {
@@ -42789,6 +43070,9 @@ void main() {
       this.pathBudget = 2;
       let anyCombat = false;
       this.detecting.length = 0;
+      let sh = 0;
+      for (const b of this.brains) if (b.burst > 0 && b.s.alive) sh++;
+      this.shooters = sh;
       for (const b of this.brains) {
         b.update(dt);
         b.s.update(dt);
@@ -43254,13 +43538,16 @@ void main() {
       c.fillRect(cx - 0.75, top - 3, 1.5, 9);
       c.font = '500 11px "IBM Plex Mono", monospace';
       c.fillStyle = "rgba(233,228,212,0.9)";
-      c.fillText(String(Math.round(bearing)).padStart(3, "0") + "\xB0", cx, top - 14 < 2 ? top + 48 : top - 14);
+      c.textAlign = "left";
+      c.fillText(String(Math.round(bearing) % 360).padStart(3, "0") + "\xB0", cx + cw / 2 + 8, top + 7);
+      c.textAlign = "center";
       c.font = '600 12px "Saira Condensed", "Arial Narrow", sans-serif';
       c.textBaseline = "middle";
       for (const o of g.mission.objs) {
         if (o.done || o.locked) continue;
         _v6.set(o.pos.x, o.pos.y + 0.5, o.pos.z);
         const dist = _v6.distanceTo(cam.position);
+        if (dist > 75 && o.kind !== "exfil") continue;
         _v6.project(cam);
         if (_v6.z > 1 || Math.abs(_v6.x) > 0.96 || Math.abs(_v6.y) > 0.92) continue;
         const x = (_v6.x * 0.5 + 0.5) * w, y = (-_v6.y * 0.5 + 0.5) * h;
@@ -43373,10 +43660,10 @@ void main() {
     ultra: { label: "Ultra", tex: 1024, scale: 1, maxDpr: 2, msaa: 4, shadow: 4096, shadowRange: 85, ao: true, rays: true, bloom: 6, aniso: 16, grass: 1.5, lights: 9, particles: 1.3, terrainSegs: 256, skyRays: 10 }
   };
   var DIFFICULTY = {
-    recruit: { label: "Acemi", dmg: 0.55, aim: 1.7, react: 1.6, sight: 0.8 },
-    regular: { label: "Asker", dmg: 0.8, aim: 1.25, react: 1.2, sight: 0.9 },
-    veteran: { label: "Komando", dmg: 1, aim: 1, react: 1, sight: 1 },
-    realistic: { label: "Ger\xE7ek\xE7i", dmg: 1.5, aim: 0.8, react: 0.8, sight: 1.1 }
+    recruit: { label: "Acemi", dmg: 0.45, aim: 1.9, react: 1.8, sight: 0.75, shooters: 2 },
+    regular: { label: "Asker", dmg: 0.65, aim: 1.4, react: 1.35, sight: 0.9, shooters: 3 },
+    veteran: { label: "Komando", dmg: 0.9, aim: 1.05, react: 1, sight: 1, shooters: 5 },
+    realistic: { label: "Ger\xE7ek\xE7i", dmg: 1.5, aim: 0.8, react: 0.8, sight: 1.1, shooters: 9 }
   };
   var DEFAULTS = { quality: "auto", difficulty: "regular", time: "dawn", sens: 1, volume: 0.8, invertY: false, fov: 72, crosshair: true, adsToggle: false };
   var isTouch = (() => {

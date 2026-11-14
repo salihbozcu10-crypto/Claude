@@ -37,7 +37,7 @@ class Parts {
 // Paralakssız holografik retikül (sonsuzda odaklı)
 function reticleMaterial(tex) {
   return new THREE.ShaderMaterial({
-    uniforms: { tRet: { value: tex }, uVmProj: globalUniforms.uVmProj, uAimF: { value: new THREE.Vector3(0, 0, -1) }, uAimR: { value: new THREE.Vector3(1, 0, 0) }, uAimU: { value: new THREE.Vector3(0, 1, 0) }, uSize: { value: 0.04 }, uBright: { value: 3.2 } },
+    uniforms: { tRet: { value: tex }, uVmProj: globalUniforms.uVmProj, uAimF: { value: new THREE.Vector3(0, 0, -1) }, uAimR: { value: new THREE.Vector3(1, 0, 0) }, uAimU: { value: new THREE.Vector3(0, 1, 0) }, uSize: { value: 0.052 }, uBright: { value: 3.2 } },
     vertexShader: /* glsl */`uniform mat4 uVmProj; varying vec3 vView; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vView = mv.xyz; gl_Position = uVmProj * mv; gl_Position.z = 0.75 * gl_Position.z - 0.25 * gl_Position.w; }`,
     fragmentShader: /* glsl */`uniform sampler2D tRet; uniform vec3 uAimF; uniform vec3 uAimR; uniform vec3 uAimU; uniform float uSize; uniform float uBright; varying vec3 vView;
       void main(){ vec3 d = normalize(vView); float f = dot(d, uAimF); vec2 a = vec2(dot(d, uAimR), dot(d, uAimU)) / max(f, 0.001); vec2 uv = a / uSize + 0.5;
@@ -61,7 +61,7 @@ function buildArms(V, kind) {
       P.rbox(V.glove, 0.03, 0.094, 0.074, -0.04, -0.047, 0.016, 0.012, 0, 0.12, 0); P.rbox(V.gloveDark, 0.012, 0.07, 0.03, -0.054, -0.044, -0.004, 0.005, 0, 0.12, 0);
       P.cap(V.glove, [-0.045, -0.06, 0.045], [-0.075, -0.09, 0.105], 0.032);
       P.cap(V.sleeve, [-0.07, -0.085, 0.095], [-0.34, -0.29, 0.46], 0.043, 0.06); P.cap(V.gloveDark, [-0.066, -0.082, 0.09], [-0.078, -0.092, 0.11], 0.044, 0.044);
-      P.rbox(V.polymer, 0.04, 0.014, 0.042, -0.082, -0.056, 0.115, 0.004, 0.5, 0.0, 0.66); P.box(V.watch, 0.026, 0.002, 0.026, -0.0865, -0.0495, 0.1118, 0.5, 0.0, 0.66);
+      P.rbox(V.polymer, 0.04, 0.014, 0.042, -0.082, -0.056, 0.115, 0.004, 0.5, 0.0, 0.66); P.box(V.watch, 0.018, 0.0015, 0.012, -0.0865, -0.0492, 0.1118, 0.5, 0.0, 0.66);
     } else {
       wrapFingers(P, V.glove, 0.0, () => 0.0, 0.03, [-0.012, -0.031, -0.05], [200, 150, 96, 42, 0], 0.0092);
       P.chain(V.glove, [[-0.028, 0.012, 0.02], [-0.026, 0.02, -0.01], [-0.022, 0.022, -0.04]], 0.0098);

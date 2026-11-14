@@ -112,7 +112,7 @@ class Brain {
   // --- ateş
   shootAt(dt) {
     const g = this.g, s = this.s, pl = g.player; this.shotCool -= dt;
-    if (this.burst <= 0) { this.burstCool -= dt; if (this.burstCool <= 0) { this.burst = (2 + Math.random() * 4) | 0; this.shotCool = 0; } return; }
+    if (this.burst <= 0) { this.burstCool -= dt; if (this.burstCool <= 0) { if (this.sys.shooters >= (g.diff.shooters || 3)) { this.burstCool = rr(0.15, 0.5); return; } this.sys.shooters++; this.burst = (2 + Math.random() * 4) | 0; this.shotCool = 0; } return; }
     if (this.shotCool > 0) return;
     this.shotCool = 0.1; this.burst--; if (this.burst <= 0) { this.burstCool = rr(0.45, 1.5) * g.diff.react; this.firstBurst = false; }
     const target = pl.getChestPos(_a); const from = _b.copy(s.muzzle);
@@ -120,7 +120,7 @@ class Brain {
     target.x += pl.hv.x * dist / 715; target.z += pl.hv.z * dist / 715;
     const dir = _c.copy(target).sub(from).normalize();
     // nişan hatası: mesafe, hedef hızı, ilk salvo, baskı altında olma
-    let sigma = 0.0115 * g.diff.aim * (1 + dist / 70) * (1 + pl.speed * 0.2) * (this.firstBurst ? 1.9 : 1) * (1 + this.suppress * 1.4) * (pl.crouching ? 1.12 : 1) * (s.speed > 0.5 ? 1.6 : 1);
+    let sigma = 0.0115 * g.diff.aim * (1 + dist / 70) * (1 + pl.speed * 0.2) * (this.firstBurst ? 2.6 : 1) * (1 + this.suppress * 1.4) * (pl.crouching ? 1.12 : 1) * (s.speed > 0.5 ? 1.6 : 1);
     if (this.elevated) sigma *= 1.15;
     dir.x += gauss() * sigma; dir.y += gauss() * sigma * 0.8; dir.z += gauss() * sigma; dir.normalize();
     this.shotCount++;
@@ -146,7 +146,7 @@ class Brain {
     if (!this.seeing) this.det = Math.max(0, this.det - dt * (this.alerted ? 0.08 : 0.22));
     if (this.state === ST.STUN) { s.aim = 0; s.speed = damp(s.speed, 0, 8, dt); s.crouch = 0.4; if (s.stunT <= 0) { this.set(ST.SEARCH); this.lastKnown.copy(pl.pos); } this.turn(dt, 0.5); return; }
     // tespit eşiği
-    if (this.det >= 1 && this.state !== ST.COMBAT) { this.set(ST.COMBAT); this.react = rr(0.35, 0.8) * g.diff.react; this.firstBurst = true; this.sys.shout(this, 32); }
+    if (this.det >= 1 && this.state !== ST.COMBAT) { this.set(ST.COMBAT); this.react = rr(0.55, 1.1) * g.diff.react; this.firstBurst = true; this.sys.shout(this, 32); }
     else if (this.det > 0.4 && (this.state === ST.IDLE || this.state === ST.PATROL)) { this.set(ST.SUSPECT); this.wait = rr(1.0, 2.0); }
     // adım sesleri
     if (pl.noise > 0 && (this.state === ST.IDLE || this.state === ST.PATROL)) { const d = s.pos.distanceTo(pl.pos); if (d < pl.noise * (g.preset.nightFactor ? 1.15 : 1) && Math.abs(s.pos.y - pl.pos.y) < 3) this.hear(pl.pos, 'step', d); }
@@ -273,6 +273,7 @@ export class AISystem {
 
   update(dt) {
     const g = this.g, pl = g.player; this.pathBudget = 2; let anyCombat = false; this.detecting.length = 0;
+    let sh = 0; for (const b of this.brains) if (b.burst > 0 && b.s.alive) sh++; this.shooters = sh;
     for (const b of this.brains) {
       b.update(dt); b.s.update(dt);
       if (!b.s.alive || b.s.team !== 'enemy') continue;

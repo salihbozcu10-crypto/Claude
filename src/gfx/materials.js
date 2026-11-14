@@ -190,7 +190,7 @@ export function createViewmodelMaterials(T) {
     gloveDark: V(pbr(cl, { color: c(0.13, 0.13, 0.13) })),
     brass: V(new THREE.MeshStandardMaterial({ color: c(0.78, 0.6, 0.28), roughness: 0.3, metalness: 1.0 })),
     lens: V(new THREE.MeshStandardMaterial({ color: c(0.05, 0.08, 0.09), roughness: 0.05, metalness: 0.0, transparent: true, opacity: 0.22, depthWrite: false })),
-    watch: V(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.25, 1.1, 0.5) })),
+    watch: V(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.06, 0.22, 0.1) })),
     skin: V(new THREE.MeshStandardMaterial({ color: c(0.7, 0.5, 0.38), roughness: 0.6 })),
     olive: V(pbr(clone(T.paint, 3), { color: c(0.24, 0.27, 0.19) })),
     bandage: V(pbr(cl, { color: c(0.85, 0.84, 0.78) })),

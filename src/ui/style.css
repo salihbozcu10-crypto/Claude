@@ -17,6 +17,7 @@
   --gt: max(14px, env(safe-area-inset-top, 0px));
   --gb: max(14px, env(safe-area-inset-bottom, 0px));
 }
+[hidden] { display: none !important; }
 html, body { height: 100%; margin: 0; background: var(--ink); color: var(--bone); overflow: hidden; font-family: var(--f-ui); font-size: 17px; line-height: 1.35; -webkit-user-select: none; user-select: none; touch-action: none; overscroll-behavior: none; }
 #game, #hudc { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #hudc { pointer-events: none; z-index: 2; }

@@ -1,4 +1,4 @@
-// Sessiz Vadi Harekâtı — ana oyun döngüsü ve durum yönetimi
+// Özel Kuvvetler (Sessiz Vadi Harekâtı) — ana oyun döngüsü ve durum yönetimi
 import * as THREE from 'three';
 import { generateTextures } from './gfx/textures.js';
 import { createMaterials, globalUniforms } from './gfx/materials.js';

@@ -299,8 +299,9 @@ export async function createWorld({ T, M, quality, onProgress }) {
 
   // ---------------------------------------------------------------- avlu: araçlar, konteynerler, mevziler
   P.pickup(B, 7, 15, 0.35, M.paintTan, { gun: true, rollbar: true });
-  P.pickup(B, 14, 24, -1.25, M.paintWhite, { cargo: true });
-  P.truck(B, 22.5, 13, 0.08);
+  P.pickup(B, 14, 21.5, -1.25, M.paintWhite, { cargo: true });
+  P.truck(B, 20.5, 12, 0.08);
+  P.carport(B, 14, 19, 0, 20, 12, 3.5);
   P.truck(B, 21, -4, 1.7, { cover: false });
   P.fuelTank(B, -22, 28, 0.2);
   for (const [x, z, m] of [[-18.4, 30.6, M.paintRed], [-17.6, 29.9, M.paintRed], [-18.6, 29.6, M.paintBlue], [-25.6, 30.8, M.paintOlive]]) P.barrel(B, x, 0, z, m);
@@ -319,7 +320,22 @@ export async function createWorld({ T, M, quality, onProgress }) {
   P.barrel(B, -17.2, 0, -7, M.paintBlue); P.barrel(B, -12.4, 0, -10.6, M.paintOlive);
   P.camoNet(B, 17, -11, -0.1, 8, 6, 3.0);
   P.table(B, 15.5, 0, -11, 0, 2.2, 0.9); P.table(B, 18.6, 0, -11.4, 0.1, 2.2, 0.9); P.chair(B, 15, 0, -10, 3.0); P.chair(B, 16.2, 0, -12, 0.1); P.chair(B, 18.8, 0, -10.3, 3.2); P.chair(B, 19.3, 0, -12.4, -0.2);
-  P.tent(B, 4, 34, 1.5, M.canvasTan); P.tent(B, -6, 30, 1.62, M.canvasOlive); P.pallet(B, 9, 0, 31, 0.3); P.crateStack(B, 9, 31, 0.3, 2, 0.12);
+  P.tent(B, -16, 38.5, 1.5, M.canvasTan); P.tent(B, -16, 32, 1.62, M.canvasOlive); P.tent(B, -24, 38.5, 1.55, M.canvasOlive); P.tent(B, -24, 32, 1.6, M.canvasTan);
+  P.pallet(B, 9, 0, 31, 0.3); P.crateStack(B, 9, 31, 0.3, 2, 0.12);
+  // kapı içi beton bariyer şikanı
+  P.jersey(B, -3.6, 40.5, Math.PI / 2); P.jersey(B, 3.6, 34.5, Math.PI / 2 + 0.05); P.jersey(B, -3.4, 28.5, Math.PI / 2 - 0.04); P.jersey(B, 9.5, 40, 0.1);
+  // büz yığınları, makaralar, yığınlar
+  P.pipeStack(B, -54, -3, 0.3, 3); P.pipeStack(B, 31, 37, 1.25, 2); P.pipeStack(B, -17, 63, 0.4, 3);
+  P.spool(B, -9.5, 11.2, true); P.spool(B, 33, 7, false, 0.6); P.spool(B, -40, 12, false, 1.9, 0.8);
+  P.mound(B, 47, -7, 2.4, 1.3, M.rock); P.mound(B, 51, -9, 1.7, 0.9, M.rock); P.mound(B, -41, 6, 2.0, 1.0);
+  // atış poligonu (doğu duvarı önü)
+  for (let i = 0; i < 5; i++) P.targetStand(B, 60.6, 31 + i * 3, -Math.PI / 2);
+  P.sandbags(B, 62.4, 29.5, 62.4, 44.5, 6); P.table(B, 49, 0, 36.5, 1.57, 2.2, 0.8); P.crate(B, 49, 0.765, 36.5, 0.6, 1.5, 'ammo'); P.sandbags(B, 46.5, 32, 46.5, 41, 2);
+  // yakma çukuru
+  P.rubble(B, 58, -22, 2.0, 16); P.barrel(B, 59.2, 0, -23.4, M.rust, { lying: true, ry: 0.4 }); P.barrel(B, 56.6, 0, -20.6, M.rust);
+  // iç hat
+  P.hesco(B, 14.5, -16.5, 0, 4); P.hesco(B, 24.5, -16.5, 0, 3); P.sandbags(B, 27, -34.5, 27, -31.5, 4); P.sandbags(B, 27, -26.5, 27, -24, 4);
+  B.box(M.concreteDark, 0, -0.02, -23.4, 24, 0.07, 6.5, { nav: false, grime: false, col: false });
   P.tireStack(B, 17.5, 28.5, 4); P.tireStack(B, 18.6, 28.9, 2); P.tireStack(B, 27, 17, 3); P.pallet(B, 26, 0, 20.5, 0.2);
   P.jerrycan(B, 10.2, 0, 14, 0.5); P.jerrycan(B, 10.5, 0, 14.4, 1.2, M.paintRed); P.barrel(B, 25.2, 0, 9, M.paintOlive); P.barrel(B, 5, 0, 20.5, M.paintBlue);
   P.waterTank(B, -57, -15);

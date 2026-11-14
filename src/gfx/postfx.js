@@ -216,7 +216,7 @@ void main() {
   }
   // hasar: kenarlarda kırmızı nabız
   float dmgMask = smoothstep(0.05, 0.42, edge);
-  outc = mix(outc, vec3(0.42, 0.015, 0.01), clamp(dmgMask * (uDamage * 0.85 + uHurt * 0.3), 0.0, 0.85));
+  outc = mix(outc, vec3(0.42, 0.015, 0.01), clamp(dmgMask * (uDamage * 0.6 + uHurt * 0.26), 0.0, 0.62));
   // flaş bombası beyazlığı
   outc = mix(outc, vec3(1.0), clamp(uFlash, 0.0, 1.0));
   // gren (aynı zamanda bantlanmayı kırar)

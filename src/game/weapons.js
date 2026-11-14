@@ -6,9 +6,9 @@ import { clamp, damp, lerp, smoothstep, Spring, rr, gauss, DEG } from '../core/u
 
 export const WEAPON_DEFS = {
   rifle: { key: 'rifle', name: 'KARABİNA 5.56', sub: 'Susturuculu · holografik nişangâh', magSize: 30, mags: 6, rpm: 780, vel: 880, dmg: 46, modes: ['OTO', 'TEK'], sound: 'rifleSup', noise: 24,
-    kick: { pitch: 0.0105, yaw: 0.0042 }, hip: [0.084, -0.119, -0.112], hipRot: [0.0, 0.03, 0.0], adsZ: -0.052, zoom: 1.32, spreadHip: 0.02, spreadAds: 0.0009, reload: 2.65, reloadEmpty: 3.2, magGrab: [0, -0.07, 0.215], boltGrab: [-0.02, 0.03, 0.25] },
+    kick: { pitch: 0.0105, yaw: 0.0042 }, hip: [0.098, -0.132, -0.3], hipRot: [0.0, 0.045, 0.0], adsZ: -0.15, zoom: 1.32, spreadHip: 0.02, spreadAds: 0.0009, reload: 2.65, reloadEmpty: 3.2, magGrab: [0, -0.07, 0.215], boltGrab: [-0.02, 0.03, 0.25] },
   pistol: { key: 'pistol', name: 'TABANCA 9 MM', sub: 'Susturuculu', magSize: 17, mags: 3, rpm: 430, vel: 365, dmg: 28, modes: ['TEK'], sound: 'pistolSup', noise: 15,
-    kick: { pitch: 0.017, yaw: 0.006 }, hip: [0.068, -0.108, -0.21], hipRot: [0.0, 0.02, 0.0], adsZ: -0.25, zoom: 1.12, spreadHip: 0.026, spreadAds: 0.0035, reload: 1.9, reloadEmpty: 2.3, magGrab: [0, -0.04, 0.0], boltGrab: [0, 0.05, 0.02] },
+    kick: { pitch: 0.017, yaw: 0.006 }, hip: [0.075, -0.115, -0.36], hipRot: [0.0, 0.03, 0.0], adsZ: -0.42, zoom: 1.12, spreadHip: 0.026, spreadAds: 0.0035, reload: 1.9, reloadEmpty: 2.3, magGrab: [0, -0.04, 0.0], boltGrab: [0, 0.05, 0.02] },
 };
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _dir = new THREE.Vector3(), _right = new THREE.Vector3(), _upv = new THREE.Vector3();

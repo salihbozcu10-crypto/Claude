@@ -1,8 +1,8 @@
 {
-  "name": "sessiz-vadi-harekati",
+  "name": "ozel-kuvvetler",
   "version": "1.0.0",
   "private": true,
-  "description": "Sessiz Vadi Harekâtı — tarayıcıda çalışan özgün bir özel kuvvetler taktik FPS oyunu (three.js)",
+  "description": "Özel Kuvvetler — tarayıcıda çalışan özgün bir taktik FPS oyunu (three.js)",
   "type": "module",
   "scripts": {
     "build": "node build.mjs",

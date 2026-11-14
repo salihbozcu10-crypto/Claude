@@ -215,7 +215,7 @@ function gunmetal(size, seed, o = {}) {
     const dx = Math.cos(a), dy = Math.sin(a);
     for (let s = 0; s < len; s++) { const i = ((Math.round(y) + S * 4) % S) * S + ((Math.round(x) + S * 4) % S); scratch[i] = Math.max(scratch[i], al); x += dx; y += dy; }
   }
-  const base = o.base || [0.085, 0.086, 0.092];
+  const base = o.base || [0.17, 0.172, 0.18];
   const st = o.stipple ? worley(S, 90, seed + 9) : null;
   for (let i = 0; i < T.n; i++) {
     const v = 1 + (mid[i] - 0.5) * 0.3 + (fine[i] - 0.5) * 0.25;
@@ -571,9 +571,9 @@ function reticleTex() {
   const [c, g] = mkCanvas(256, 256);
   g.clearRect(0, 0, 256, 256); g.strokeStyle = 'rgba(255,60,40,1)'; g.fillStyle = 'rgba(255,70,45,1)';
   g.shadowColor = 'rgba(255,40,20,0.9)'; g.shadowBlur = 8;
-  g.lineWidth = 5; g.beginPath(); g.arc(128, 128, 84, 0, 6.3); g.stroke();
-  g.beginPath(); g.arc(128, 128, 6, 0, 6.3); g.fill();
-  g.lineWidth = 6; for (const a of [0, 1.5708, 3.1416, 4.7124]) { g.beginPath(); g.moveTo(128 + Math.cos(a) * 84, 128 + Math.sin(a) * 84); g.lineTo(128 + Math.cos(a) * 104, 128 + Math.sin(a) * 104); g.stroke(); }
+  g.lineWidth = 9; g.beginPath(); g.arc(128, 128, 84, 0, 6.3); g.stroke();
+  g.beginPath(); g.arc(128, 128, 10, 0, 6.3); g.fill();
+  g.lineWidth = 9; for (const a of [0, 1.5708, 3.1416, 4.7124]) { g.beginPath(); g.moveTo(128 + Math.cos(a) * 84, 128 + Math.sin(a) * 84); g.lineTo(128 + Math.cos(a) * 104, 128 + Math.sin(a) * 104); g.stroke(); }
   const t = canvasTex(c, true); t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter;
   return t;
 }
@@ -590,7 +590,7 @@ export const TEXTURE_RECIPES = (S, lo) => [
   ['galvanized', () => corrugated(lo, 67, { ridges: 10, galvanized: true, rust: 0.3 })],
   ['paint', () => paintedMetal(lo, 71)],
   ['gunmetal', () => gunmetal(lo, 83, {})],
-  ['polymer', () => gunmetal(lo, 89, { base: [0.055, 0.055, 0.06], metal: 0.0, rough: 0.6, stipple: true, wear: 0.15, dust: 0.3 })],
+  ['polymer', () => gunmetal(lo, 89, { base: [0.115, 0.115, 0.12], metal: 0.0, rough: 0.58, stipple: true, wear: 0.15, dust: 0.3 })],
   ['steel', () => gunmetal(lo, 91, { base: [0.5, 0.5, 0.52], metal: 1.0, rough: 0.4, wear: 0.5, dust: 0.6 })],
   ['polymerTan', () => gunmetal(lo, 93, { base: [0.5, 0.41, 0.3], metal: 0.0, rough: 0.64, stipple: true, wear: 0.12, dust: 0.25 })],
   ['wood', () => wood(S, 97, { planks: 4, weather: 0.35 })],

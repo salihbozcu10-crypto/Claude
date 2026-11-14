@@ -7,10 +7,10 @@ export const QUALITY = {
 };
 
 export const DIFFICULTY = {
-  recruit: { label: 'Acemi', dmg: 0.55, aim: 1.7, react: 1.6, sight: 0.8 },
-  regular: { label: 'Asker', dmg: 0.8, aim: 1.25, react: 1.2, sight: 0.9 },
-  veteran: { label: 'Komando', dmg: 1.0, aim: 1.0, react: 1.0, sight: 1.0 },
-  realistic: { label: 'Gerçekçi', dmg: 1.5, aim: 0.8, react: 0.8, sight: 1.1 },
+  recruit: { label: 'Acemi', dmg: 0.45, aim: 1.9, react: 1.8, sight: 0.75, shooters: 2 },
+  regular: { label: 'Asker', dmg: 0.65, aim: 1.4, react: 1.35, sight: 0.9, shooters: 3 },
+  veteran: { label: 'Komando', dmg: 0.9, aim: 1.05, react: 1.0, sight: 1.0, shooters: 5 },
+  realistic: { label: 'Gerçekçi', dmg: 1.5, aim: 0.8, react: 0.8, sight: 1.1, shooters: 9 },
 };
 
 const DEFAULTS = { quality: 'auto', difficulty: 'regular', time: 'dawn', sens: 1.0, volume: 0.8, invertY: false, fov: 72, crosshair: true, adsToggle: false };

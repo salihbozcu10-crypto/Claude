@@ -495,3 +495,92 @@ export function gate(B, x, z, ry, width, openFrac = 0.6) {
   F.box(M.paintWhite, width / 2 - 0.5 - 2.6, 1.02, -1.8, 5.4, 0.1, 0.1, { rz: -1.05, col: false });
   for (let i = 0; i < 4; i++) F.box(M.paintRed, width / 2 - 0.5 - (0.7 + i * 1.25) * Math.cos(1.05), 1.02 + (0.7 + i * 1.25) * Math.sin(1.05), -1.8, 0.5, 0.104, 0.104, { rz: -1.05, col: false });
 }
+
+// ------------------------------------------------------------ ek donanım
+
+// Kapalı çokgen kesitli prizma (kesit x-y düzleminde, saat yönünün tersine; uzunluk z boyunca)
+function prismGeo(profile, len) {
+  const pos = [], nrm = [], uv = [], idx = []; const n = profile.length; let acc = 0;
+  for (let i = 0; i < n; i++) {
+    const a = profile[i], b = profile[(i + 1) % n]; const dx = b[0] - a[0], dy = b[1] - a[1]; const l = Math.hypot(dx, dy); const nx = dy / l, ny = -dx / l; const base = pos.length / 3;
+    pos.push(a[0], a[1], -len / 2, b[0], b[1], -len / 2, b[0], b[1], len / 2, a[0], a[1], len / 2);
+    for (let k = 0; k < 4; k++) nrm.push(nx, ny, 0);
+    uv.push(0, acc, 0, acc + l, len, acc + l, len, acc); acc += l;
+    idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+  for (const sgn of [-1, 1]) {
+    const base = pos.length / 3;
+    for (const p of profile) { pos.push(p[0], p[1], sgn * len / 2); nrm.push(0, 0, sgn); uv.push(p[0], p[1]); }
+    for (let i = 1; i < n - 1; i++) { if (sgn > 0) idx.push(base, base + i, base + i + 1); else idx.push(base, base + i + 1, base + i); }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+  return g;
+}
+
+let _jersey = null;
+// Beton bariyer (3 m)
+export function jersey(B, x, z, ry = 0) {
+  const M = B.M; const y = B.terrain.heightAt(x, z);
+  if (!_jersey) _jersey = prismGeo([[-0.3, 0], [0.3, 0], [0.3, 0.09], [0.12, 0.32], [0.09, 0.82], [-0.09, 0.82], [-0.12, 0.32], [-0.3, 0.09]], 3);
+  B.add(M.concrete, _jersey, B.mat4(x, y, z, ry), { grime: true });
+  B.collide(x, y, z, 0.5, 0.82, 3, { ry, surf: SURF.concrete });
+}
+
+let _pipe = null;
+function pipeGeo() {
+  if (_pipe) return _pipe; const r = 0.62, ri = 0.54, len = 2.4, seg = 18; const parts = [];
+  const outer = new THREE.CylinderGeometry(r, r, len, seg, 1, true); const inner = new THREE.CylinderGeometry(ri, ri, len, seg, 1, true);
+  { const I = inner.index.array; for (let i = 0; i < I.length; i += 3) { const t = I[i]; I[i] = I[i + 1]; I[i + 1] = t; } const N = inner.attributes.normal.array; for (let i = 0; i < N.length; i++) N[i] = -N[i]; }
+  const c1 = new THREE.RingGeometry(ri, r, seg); c1.rotateX(-Math.PI / 2); c1.translate(0, len / 2, 0); const c2 = new THREE.RingGeometry(ri, r, seg); c2.rotateX(Math.PI / 2); c2.translate(0, -len / 2, 0);
+  for (const g of [outer, inner, c1, c2]) { const U = g.attributes.uv; for (let i = 0; i < U.count; i++) U.setXY(i, U.getX(i) * 3.6, U.getY(i) * 2.4); g.rotateX(Math.PI / 2); parts.push(g); }
+  // elle birleştir
+  const pos = [], nrm = [], uv = [], idx = []; for (const g of parts) { const base = pos.length / 3; pos.push(...g.attributes.position.array); nrm.push(...g.attributes.normal.array); uv.push(...g.attributes.uv.array); for (const i of g.index.array) idx.push(base + i); g.dispose(); }
+  _pipe = new THREE.BufferGeometry(); _pipe.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); _pipe.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); _pipe.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); _pipe.setIndex(idx);
+  return _pipe;
+}
+// Üst üste beton büz yığını (içinden bakılabilir)
+export function pipeStack(B, x, z, ry = 0, n = 3) {
+  const M = B.M; const y = B.terrain.heightAt(x, z); const F = frame(B, x, y, z, ry); const g = pipeGeo();
+  const slots = n >= 3 ? [[-0.64, 0.62], [0.64, 0.62], [0, 1.72]] : n === 2 ? [[-0.64, 0.62], [0.64, 0.62]] : [[0, 0.62]];
+  for (const [lx, ly] of slots) {
+    F.add(M.concreteDark, g, lx, ly, 0, {});
+    // delik açık kalsın diye çarpışma: alt, üst ve yanlar ayrı kutular
+    F.collide(lx, ly - 0.62, 0, 1.2, 0.1, 2.4, { nav: false }); F.collide(lx, ly + 0.52, 0, 1.2, 0.1, 2.4, { nav: false }); F.collide(lx - 0.58, ly - 0.5, 0, 0.08, 1.0, 2.4, { nav: false }); F.collide(lx + 0.58, ly - 0.5, 0, 0.08, 1.0, 2.4, { nav: false });
+  }
+  B.nav.blockOBB(x, z, n >= 2 ? 2.6 : 1.3, 2.4, ry, 0.3);
+}
+
+// Araç sundurması: direkler + eğimli sac çatı
+export function carport(B, x, z, ry, w, d, h = 3.4) {
+  const M = B.M; const y = B.terrain.heightAt(x, z); const F = frame(B, x, y, z, ry);
+  const nx = Math.max(2, Math.round(w / 5) + 1);
+  for (let i = 0; i < nx; i++) for (const sz of [-1, 1]) { const lx = -w / 2 + i * w / (nx - 1); F.box(M.galvanized, lx, 0, sz * d / 2, 0.14, h + (sz > 0 ? 0.35 : -0.05), 0.14, { grime: false, navPad: 0.15 }); F.box(M.concrete, lx, 0, sz * d / 2, 0.45, 0.2, 0.45, { col: false }); }
+  for (let i = 0; i < nx; i++) { const lx = -w / 2 + i * w / (nx - 1); F.beam(M.galvanized, [lx, h - 0.05, -d / 2], [lx, h + 0.35, d / 2], 0.05); }
+  for (const sz of [-1, 0, 1]) F.beam(M.galvanized, [-w / 2, h + 0.15 + sz * 0.2, sz * d / 2], [w / 2, h + 0.15 + sz * 0.2, sz * d / 2], 0.04);
+  F.box(M.roofMetal, 0, h + 0.2, 0, w + 1.0, 0.05, d + 1.2, { rx: -Math.atan2(0.4, d), nav: false, grime: false, surf: SURF.metal });
+}
+
+// Atış poligonu hedefi
+export function targetStand(B, x, z, ry = 0) {
+  const M = B.M; const y = B.terrain.heightAt(x, z); const F = frame(B, x, y, z, ry);
+  F.beam(M.woodOld, [-0.3, 0, 0], [-0.3, 1.75, 0], 0.025); F.beam(M.woodOld, [0.3, 0, 0], [0.3, 1.75, 0], 0.025); F.beam(M.woodOld, [-0.42, 0.02, 0.25], [-0.3, 0.5, 0], 0.02); F.beam(M.woodOld, [0.42, 0.02, 0.25], [0.3, 0.5, 0], 0.02);
+  F.box(M.woodOld, 0, 0.85, 0.02, 0.62, 0.9, 0.015, { col: false, grime: false, uvRot: true }); F.box(M.paintDark, 0, 0.92, 0.031, 0.36, 0.52, 0.004, { col: false, grime: false }); F.box(M.paintDark, 0, 1.44, 0.031, 0.17, 0.2, 0.004, { col: false, grime: false });
+  F.box(M.paintWhite, 0, 1.12, 0.034, 0.09, 0.09, 0.003, { col: false, grime: false });
+  F.collide(0, 0.85, 0.02, 0.62, 0.9, 0.02, { surf: SURF.wood, nav: false });
+}
+
+// Kablo makarası (yan yatmış ya da masa gibi dik)
+export function spool(B, x, z, upright = true, ry = 0, s = 1) {
+  const M = B.M; const y = B.terrain.heightAt(x, z);
+  if (upright) { B.cyl(M.woodOld, x, y, z, 0.62 * s, 0.06, { seg: 16, col: false }); B.cyl(M.woodOld, x, y + 0.06, z, 0.3 * s, 0.62 * s, { seg: 12, col: false }); B.cyl(M.woodOld, x, y + 0.06 + 0.62 * s, z, 0.62 * s, 0.06, { seg: 16, col: false }); B.collide(x, y, z, 1.1 * s, 0.74 * s + 0.06, 1.1 * s, { surf: SURF.wood, ry: 0.4 }); }
+  else { const c = Math.cos(ry), sn = Math.sin(ry); for (const t of [-0.34, 0.34]) B.cyl(M.woodOld, x + t * s * c, y + 0.62 * s, z - t * s * sn, 0.62 * s, 0.06, { axis: 'x', ry, seg: 16, col: false }); B.cyl(M.woodOld, x, y + 0.62 * s, z, 0.3 * s, 0.68 * s, { axis: 'x', ry, seg: 12, col: false }); B.collide(x, y, z, 0.8 * s, 1.24 * s, 1.2 * s, { surf: SURF.wood, ry }); }
+}
+
+// Kum / çakıl yığını
+export function mound(B, x, z, r = 1.6, h = 0.9, mat) {
+  const M = B.M; const y = B.terrain.heightAt(x, z); const g = new THREE.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+  const P = g.attributes.position; for (let i = 0; i < P.count; i++) { const px = P.getX(i), py = P.getY(i), pz = P.getZ(i); const k = 1 + noise2(px * 2.1 + x, pz * 2.1 + z) * 0.22; P.setXYZ(i, px * r * k, Math.pow(py, 0.8) * h, pz * r * k); }
+  g.computeVertexNormals(); const U = g.attributes.uv; for (let i = 0; i < U.count; i++) U.setXY(i, P.getX(i) * 0.7, P.getZ(i) * 0.7);
+  B.add(mat || M.burlap, g, B.mat4(x, y - 0.03, z, R.range(0, 6)), { col: true, surf: SURF.sand }); g.dispose();
+  B.nav.blockOBB(x, z, r * 1.5, r * 1.5, 0, 0.2);
+}
