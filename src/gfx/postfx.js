@@ -191,12 +191,13 @@ void main() {
   vec3 outc;
   if (nvg > 0.5) {
     // Gece görüşü: görüntü yoğunlaştırıcı tüp benzetimi
-    float l = dot(col + bloom * 0.6, vec3(0.34, 0.5, 0.16)) * ev * 26.0;
+    float l = dot(col + bloom * 0.5, vec3(0.34, 0.5, 0.16)) * ev * 6.0;
     float n = hash12(gl_FragCoord.xy + fract(uTime * 7.13) * 613.0);
     float n2 = hash12(floor(gl_FragCoord.xy * 0.5) + fract(uTime * 3.7) * 271.0);
-    l += (n - 0.5) * 0.11 * (0.35 + l) + step(0.9985, n2) * 0.5;
-    l = l / (1.0 + l); l = pow(max(l, 0.0), 0.82) * 1.12;
-    outc = mix(vec3(0.02, 0.07, 0.035), vec3(0.62, 1.0, 0.72), l) * l + vec3(0.0, 0.012, 0.004);
+    l = 1.0 - exp(-max(l, 0.0) * 2.2); l = pow(l, 1.3);
+    l += (n - 0.5) * 0.09 * (0.3 + l) + step(0.9985, n2) * 0.45;
+    l = clamp(l, 0.0, 1.0);
+    outc = mix(vec3(0.0, 0.03, 0.012), vec3(0.6, 1.0, 0.7), l);
     // çift tüp maskesi
     vec2 q = vec2(cc.x * uAspect, cc.y);
     float m1 = length(q - vec2(-0.2 * uAspect / 1.78, 0.0)), m2 = length(q - vec2(0.2 * uAspect / 1.78, 0.0));

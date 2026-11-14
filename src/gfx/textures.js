@@ -100,11 +100,11 @@ function plaster(size, seed) {
     T.r[i] = v; T.g[i] = v * 0.985; T.b[i] = v * 0.95 - dirt * 0.03;
     const crack = (1 - smoothstep(0.0, 0.022, crackF[i])) * smoothstep(0.38, 0.55, big[i]);
     T.mul(i, 1 - crack * 0.55);
-    const chip = smoothstep(0.685, 0.7, chipN[i]);
-    const edge = smoothstep(0.655, 0.685, chipN[i]) * (1 - chip);
-    if (chip > 0) { const cv = 0.72 + fine[i] * 0.4; T.mix(i, 0.52 * cv, 0.47 * cv, 0.40 * cv, chip); }
-    T.mul(i, 1 - edge * 0.25);
-    T.h[i] = 0.6 + (bump[i] - 0.5) * 0.3 + (fine[i] - 0.5) * 0.1 - crack * 0.45 - chip * 0.28 + (chip > 0 ? (fine[i] - 0.5) * 0.3 : 0);
+    const chip = smoothstep(0.752, 0.762, chipN[i]);
+    const edge = smoothstep(0.738, 0.752, chipN[i]) * (1 - chip);
+    if (chip > 0) { const cv = 0.85 + fine[i] * 0.3; T.mix(i, 0.66 * cv, 0.63 * cv, 0.58 * cv, chip); }
+    T.mul(i, 1 - edge * 0.18);
+    T.h[i] = 0.6 + (bump[i] - 0.5) * 0.3 + (fine[i] - 0.5) * 0.1 - crack * 0.45 - chip * 0.14 + (chip > 0 ? (fine[i] - 0.5) * 0.2 : 0);
     T.ro[i] = 0.9 + chip * 0.06;
   }
   return finish(T, 2.0, 0.6);

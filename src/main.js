@@ -54,7 +54,7 @@ class Game {
     this.fx.addEmitter({ type: 'smoke', x: 58, y: 0.4, z: -22, rate: 1.6, range: 900, a: 0.5 });
     this.motes = this.fx.addEmitter({ type: 'motes', x: 0, y: 0, z: 0, rate: 9, range: 1e6 });
     // gece görüşü için kızılötesi aydınlatıcı
-    this.irLight = new THREE.SpotLight(0xffffff, 0, 70, 0.55, 0.6, 1.4); this.irLight.position.set(0, 0, 0); this.camera.add(this.irLight); this.irLight.target.position.set(0, 0, -1); this.camera.add(this.irLight.target);
+    this.irLight = new THREE.SpotLight(0xffffff, 0, 80, 0.62, 0.7, 2); this.irLight.position.set(0, 0, 0); this.camera.add(this.irLight); this.irLight.target.position.set(0, 0, -1); this.camera.add(this.irLight.target);
     this.setTime(this.settings.time);
     if (isTouch) { document.body.classList.add('touch'); $('touch').hidden = false; this.touchRoot = $('touch'); this.input.bindTouch(this.touchRoot); }
     this.resize();
@@ -187,7 +187,7 @@ class Game {
       this.stateT += dt;
       if (st === 'intro') { pl.frozen = this.stateT < 1.2; if (this.stateT > 4.2) { this.state = 'play'; $('intro').hidden = true; pl.frozen = false; } }
       if (st === 'play') { this.missionTime += dt; if (inp.hitAny('pause')) { this.pause(); inp.endFrame(); return; } }
-      if (inp.hit('nvg') && pl.alive) { this.nvg = !this.nvg; this.audio.play('nvg', { vol: 0.8 }); this.post.fx.uNvg.value = this.nvg ? 1 : 0; this.irLight.intensity = this.nvg ? 60 : 0; }
+      if (inp.hit('nvg') && pl.alive) { this.nvg = !this.nvg; this.audio.play('nvg', { vol: 0.8 }); this.post.fx.uNvg.value = this.nvg ? 1 : 0; this.irLight.intensity = this.nvg ? 26 : 0; }
       pl.update(dt); this.weapons.update(dt); this.ai.update(dt); this.ballistics.update(dt); if (st !== 'dead') this.mission.update(dt); this.heli.update(dt);
       if (st === 'dead' && this.stateT > 2.8 && this.menu.current !== 'dead') { this.menu.dead(this.deadInfo[0], this.deadInfo[1]); this.hud.show(false); this.input.enabled = false; this.input.exitLock(); }
       $('lockhint').hidden = !(st === 'play' && !inp.touch && !inp.locked && !inp.freeLook);
@@ -228,8 +228,8 @@ class Game {
     this.letter = damp(this.letter, this.state === 'intro' && this.stateT < 3.4 ? 1 : this.state === 'outro' ? 1 : 0, 4, dt || 0.016);
     fx.uKey.value = p.key; fx.uExposure.value = p.exposure * (playing ? lerp(1, 1.0, pl.inside) : 1);
     fx.uDamage.value = playing ? pl.damageFlash : 0; fx.uHurt.value = playing ? pl.hurt : 0; fx.uFlash.value = playing ? clamp(pl.flash, 0, 1) : 0; fx.uSuppress.value = playing ? pl.suppress : 0; fx.uLetter.value = this.letter;
-    fx.uBloom.value = this.nvg ? 0.22 : 0.065; fx.uVignette.value = this.nvg ? 0 : 0.42;
-    this.post.render(this.scene, cam, this.fxScene, dt || 0.016, { sunDir: this.sky.sunDir, rays: p.rays * (1 - (playing ? pl.inside : 0) * 0.7), fogDensity: p.fogDensity, fogHeight: p.fogHeight, bloomThreshold: this.nvg ? 0.35 : 1.0 });
+    fx.uBloom.value = this.nvg ? 0.05 : 0.065; fx.uVignette.value = this.nvg ? 0 : 0.42;
+    this.post.render(this.scene, cam, this.fxScene, dt || 0.016, { sunDir: this.sky.sunDir, rays: p.rays * (1 - (playing ? pl.inside : 0) * 0.7), fogDensity: p.fogDensity, fogHeight: p.fogHeight, bloomThreshold: this.nvg ? 1.5 : 1.0 });
   }
 
   // Otomatik kalitede kare süresine göre çözünürlük ölçeğini ayarlar

@@ -14,7 +14,7 @@ export class HUD {
     this.last = {}; this.toastT = 0; this.warnT = 0; this.radioT = 0; this.objT = 0; this.hitT = 0; this.hitKill = false; this.hitHead = false; this.visible = false; this.spread = 0; this.objKey = '';
     this.resize();
   }
-  resize() { const d = Math.min(devicePixelRatio || 1, 2); this.dpr = d; this.c.width = Math.round(innerWidth * d); this.c.height = Math.round(innerHeight * d); }
+  resize() { const d = Math.min(devicePixelRatio || 1, 2); this.dpr = d; this.c.width = Math.round(innerWidth * d); this.c.height = Math.round(innerHeight * d); this.padTop = parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0; }
   show(v) { this.visible = v; this.root.hidden = !v; if (!v) this.ctx.clearRect(0, 0, this.c.width, this.c.height); }
   set(key, node, value, prop = 'textContent') { if (this.last[key] !== value) { this.last[key] = value; node[prop] = value; } }
 
@@ -63,7 +63,7 @@ export class HUD {
     c.save(); c.scale(d, d); const w = W / d, h = H / d, cx = w / 2, cy = h / 2;
     const bearing = ((-pl.yaw * 180 / Math.PI) % 360 + 360) % 360;
     // --- pusula şeridi
-    const cw = Math.min(380, w * 0.5), top = (g.input.touch ? 46 : 14) + (parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0), ppd = cw / 110;
+    const cw = Math.min(380, w * 0.5), top = (g.input.touch ? 46 : 14) + (this.padTop || 0), ppd = cw / 110;
     c.font = '600 12px "Saira Condensed", "Arial Narrow", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
     c.fillStyle = 'rgba(13,17,14,0.5)'; c.fillRect(cx - cw / 2, top, cw, 26);
     c.save(); c.beginPath(); c.rect(cx - cw / 2, top, cw, 44); c.clip();

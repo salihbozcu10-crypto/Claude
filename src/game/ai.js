@@ -232,6 +232,8 @@ class Brain {
   updateFollow(dt) {
     const g = this.g, s = this.s, pl = g.player; s.kneel = damp(s.kneel, 0, 4, dt); s.aim = 0; s.crouch = damp(s.crouch, g.ai.combat ? 0.5 : 0.15, 4, dt);
     const d = s.pos.distanceTo(pl.pos);
+    this.farT = d > 28 ? (this.farT || 0) + dt : 0;
+    if (this.farT > 8) { const bx = pl.pos.x + Math.sin(pl.yaw) * 4, bz = pl.pos.z + Math.cos(pl.yaw) * 4; const p = g.world.nav.nearestWalkable(bx, bz, 10); if (p) { s.pos.set(p.x, g.world.groundY(p.x, p.z), p.z); this.path = null; } this.farT = 0; }
     this.repathT -= dt;
     if (d > 3.2) { if (!this.path || this.repathT <= 0) { this.repathT = 0.7; const bx = pl.pos.x + Math.sin(pl.yaw) * 1.6, bz = pl.pos.z + Math.cos(pl.yaw) * 1.6; this.goTo(bx, bz, true); } this.follow(dt, d > 9 ? 5.2 : 3.2); }
     else { s.speed = damp(s.speed, 0, 8, dt); this.path = null; this.targetYaw = Math.atan2(pl.pos.x - s.pos.x, pl.pos.z - s.pos.z); }
