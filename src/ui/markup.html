@@ -1,2 +1,189 @@
-<canvas id="game"></canvas>
-<div id="dbg"></div>
+<canvas id="game" aria-label="Oyun görüntüsü"></canvas>
+<canvas id="hudc" aria-hidden="true"></canvas>
+
+<div id="hud" hidden>
+  <div id="objectives" class="plate"></div>
+  <div id="warn" role="alert" hidden></div>
+  <div id="radio" hidden><b class="who"></b><span class="txt"></span></div>
+  <div id="toast" hidden></div>
+  <div id="prompt" hidden><kbd>F</kbd><span class="txt"></span><div class="bar"><i></i></div></div>
+  <div id="status" class="plate">
+    <div class="row"><span class="lbl">SAĞLIK</span><div class="meter"><i id="hp"></i></div><span id="hpv" class="num">100</span></div>
+    <div class="row sub"><span id="stance">AYAKTA</span><span class="sep">·</span><span>SARGI <b id="band">3</b></span><span class="sep">·</span><span id="nvgtag">GGC KAPALI</span></div>
+  </div>
+  <div id="ammo" class="plate">
+    <div class="big"><span id="mag">30</span><span class="slash">/</span><span id="res">180</span></div>
+    <div class="row sub"><span id="wname">KARABİNA 5.56</span><span class="sep">·</span><span id="mode">OTO</span></div>
+    <div class="row sub"><span>BOMBA <b id="frag">2</b></span><span class="sep">·</span><span>FLAŞ <b id="flash">2</b></span></div>
+  </div>
+  <div id="touch" hidden>
+    <div id="touch-area"></div>
+    <div id="stick" hidden><div id="stick-knob"></div></div>
+    <button class="tb t-pause" data-ui="pause" aria-label="Duraklat">II</button>
+    <div class="tb t-fire2" data-act="fire">ATEŞ</div>
+    <div class="tb t-fire" data-act="fire">ATEŞ</div>
+    <div class="tb t-ads" data-act="ads" data-toggle>NİŞAN</div>
+    <div class="tb t-reload" data-act="reload">ŞARJÖR</div>
+    <div class="tb t-jump" data-act="jump">ZIPLA</div>
+    <div class="tb t-crouch" data-act="crouch">ÇÖMEL</div>
+    <div class="tb t-swap" data-act="swap">SİLAH</div>
+    <div class="tb t-gren" data-act="grenade">BOMBA</div>
+    <div class="tb t-flash" data-act="flash">FLAŞ</div>
+    <div class="tb t-heal" data-act="heal">SARGI</div>
+    <div class="tb t-nvg" data-act="nvg">GGC</div>
+    <div class="tb t-use" data-act="interact" hidden>KULLAN</div>
+  </div>
+</div>
+
+<div id="fade"></div>
+<div id="intro" hidden>
+  <p class="eyebrow">05:42 · SINIR HATTININ 14 KM KUZEYİ</p>
+  <h2>SESSİZ VADİ</h2>
+  <p class="line">Kartal Timi · tek kişilik sızma</p>
+</div>
+<div id="lockhint" hidden>Devam etmek için ekrana tıkla</div>
+<div id="rotate" hidden><p>Telefonu yan çevir</p><span>Oyun yatay ekranda oynanır</span></div>
+
+<section id="loading" class="screen">
+  <div class="col">
+    <p class="eyebrow">ÖZEL KUVVETLER · TAKTİK NİŞANCI</p>
+    <h1>SESSİZ VADİ<br>HAREKÂTI</h1>
+    <p id="load-text" class="mono">Harekât bölgesi hazırlanıyor…</p>
+    <div class="progress"><i id="load-bar"></i></div>
+    <p id="load-tip" class="tip">Dokular, arazi ve ışık haritası cihazında üretiliyor. İlk açılış birkaç saniye sürer.</p>
+  </div>
+</section>
+
+<section id="menu" class="screen scrim" hidden>
+  <div class="col">
+    <p class="eyebrow">ÖZEL KUVVETLER · TAKTİK NİŞANCI</p>
+    <h1>SESSİZ VADİ<br>HAREKÂTI</h1>
+    <p class="lead">Şafak sökerken düşman hattının gerisine tek başına sız. Telsiz direğini sustur, istihbaratı al, rehineyi çıkar.</p>
+    <nav class="stack">
+      <button id="btn-start" class="btn primary">Harekâta başla</button>
+      <button id="btn-settings" class="btn">Ayarlar</button>
+      <button id="btn-controls" class="btn">Kontroller</button>
+    </nav>
+    <p class="foot mono">Fare + klavye ya da dokunmatik ekran · kulaklık önerilir</p>
+  </div>
+</section>
+
+<section id="brief" class="screen scrim" hidden>
+  <div class="col wide">
+    <p class="eyebrow">GÖREV EMRİ · KARTAL-1</p>
+    <h2>Sessiz Vadi</h2>
+    <p class="lead">Silah kaçakçısı paralı askerler eski bir tesisi üs olarak kullanıyor. İçeride yaklaşık yirmi beş silahlı var. Güney sırtından başlıyorsun; batıdaki kuru dere yatağı ve yıkık duvar gözlerden uzak bir giriş sağlar.</p>
+    <div class="grid2">
+      <div>
+        <h3>Hedefler</h3>
+        <ol class="objs">
+          <li><b>A</b> Telsiz direğini sabote et</li>
+          <li><b>B</b> Karargâhın üst katındaki istihbaratı al</li>
+          <li><b>C</b> Hücre bloğundaki rehineyi kurtar</li>
+          <li class="opt"><b>D</b> Depodaki cephaneliği imha et <i>ikincil</i></li>
+          <li><b>LZ</b> Rehineyle birlikte tahliye noktasına ulaş</li>
+        </ol>
+      </div>
+      <div>
+        <h3>Teçhizat</h3>
+        <ul class="kit">
+          <li>Susturuculu 5.56 karabina · 7 şarjör</li>
+          <li>Susturuculu 9 mm tabanca · 4 şarjör</li>
+          <li>2 el bombası · 2 flaş bombası</li>
+          <li>Gece görüş gözlüğü · 3 sargı · C4</li>
+        </ul>
+        <div class="fields">
+          <label for="sel-time">Zaman<select id="sel-time"><option value="dawn">Şafak</option><option value="day">Gündüz</option><option value="night">Gece (GGC)</option></select></label>
+          <label for="sel-diff">Zorluk<select id="sel-diff"><option value="recruit">Acemi</option><option value="regular">Asker</option><option value="veteran">Komando</option><option value="realistic">Gerçekçi</option></select></label>
+        </div>
+      </div>
+    </div>
+    <nav class="rowbtn">
+      <button id="btn-go" class="btn primary">Sızmayı başlat</button>
+      <button class="btn" data-back="menu">Geri</button>
+    </nav>
+  </div>
+</section>
+
+<section id="settings" class="screen scrim" hidden>
+  <div class="col wide">
+    <p class="eyebrow">AYARLAR</p>
+    <h2>Görüntü ve kontrol</h2>
+    <div class="fields two">
+      <label for="set-quality">Grafik kalitesi<select id="set-quality"><option value="auto">Otomatik</option><option value="low">Düşük</option><option value="medium">Orta</option><option value="high">Yüksek</option><option value="ultra">Ultra</option></select></label>
+      <label for="set-sens">Bakış hassasiyeti <output id="out-sens"></output><input id="set-sens" type="range" min="0.3" max="2.5" step="0.05"></label>
+      <label for="set-fov">Görüş açısı <output id="out-fov"></output><input id="set-fov" type="range" min="60" max="95" step="1"></label>
+      <label for="set-vol">Ses düzeyi <output id="out-vol"></output><input id="set-vol" type="range" min="0" max="1" step="0.05"></label>
+      <label class="check" for="set-invert"><input id="set-invert" type="checkbox"> Dikey bakışı ters çevir</label>
+      <label class="check" for="set-cross"><input id="set-cross" type="checkbox"> Nişan artısını göster</label>
+    </div>
+    <p id="set-note" class="tip">Doku çözünürlüğü ve bitki yoğunluğu değişikliği bir sonraki açılışta uygulanır; diğerleri hemen geçerlidir.</p>
+    <nav class="rowbtn"><button class="btn primary" data-back="auto">Tamam</button></nav>
+  </div>
+</section>
+
+<section id="controls" class="screen scrim" hidden>
+  <div class="col wide">
+    <p class="eyebrow">KONTROLLER</p>
+    <h2>Klavye ve fare</h2>
+    <dl class="keys">
+      <div><dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>Hareket</dd></div>
+      <div><dt><kbd>Fare</kbd></dt><dd>Bakış · sol tık ateş · sağ tık nişan</dd></div>
+      <div><dt><kbd>Shift</kbd></dt><dd>Koş</dd></div>
+      <div><dt><kbd>C</kbd></dt><dd>Çömel</dd></div>
+      <div><dt><kbd>Boşluk</kbd></dt><dd>Zıpla · alçak engeli aş</dd></div>
+      <div><dt><kbd>Q</kbd><kbd>E</kbd></dt><dd>Köşeden eğilerek bak</dd></div>
+      <div><dt><kbd>R</kbd></dt><dd>Şarjör değiştir</dd></div>
+      <div><dt><kbd>B</kbd></dt><dd>Atış modu (tek / otomatik)</dd></div>
+      <div><dt><kbd>1</kbd><kbd>2</kbd></dt><dd>Karabina · tabanca</dd></div>
+      <div><dt><kbd>G</kbd><kbd>T</kbd></dt><dd>El bombası · flaş bombası</dd></div>
+      <div><dt><kbd>F</kbd></dt><dd>Etkileşim (basılı tut)</dd></div>
+      <div><dt><kbd>H</kbd></dt><dd>Sargı uygula (basılı tut)</dd></div>
+      <div><dt><kbd>N</kbd></dt><dd>Gece görüş gözlüğü</dd></div>
+      <div><dt><kbd>Tab</kbd></dt><dd>Hedefleri göster</dd></div>
+      <div><dt><kbd>Esc</kbd></dt><dd>Duraklat</dd></div>
+    </dl>
+    <p class="tip">Dokunmatik ekranda: sol yarı hareket çubuğu, sağ yarı bakış. Düğmeler ekranın sağında.</p>
+    <nav class="rowbtn"><button class="btn primary" data-back="auto">Tamam</button></nav>
+  </div>
+</section>
+
+<section id="pause" class="screen scrim" hidden>
+  <div class="col">
+    <p class="eyebrow">DURAKLATILDI</p>
+    <h2>Sessiz Vadi</h2>
+    <div id="pause-objs" class="objlist"></div>
+    <nav class="stack">
+      <button id="btn-resume" class="btn primary">Devam et</button>
+      <button id="btn-psettings" class="btn">Ayarlar</button>
+      <button id="btn-pcontrols" class="btn">Kontroller</button>
+      <button id="btn-restart" class="btn">Görevi yeniden başlat</button>
+      <button id="btn-quit" class="btn">Ana menü</button>
+    </nav>
+  </div>
+</section>
+
+<section id="dead" class="screen scrim red" hidden>
+  <div class="col">
+    <p class="eyebrow">GÖREV BAŞARISIZ</p>
+    <h2 id="dead-title">Vuruldun</h2>
+    <p id="dead-text" class="lead">Kartal-1 ile telsiz bağlantısı kesildi.</p>
+    <nav class="stack">
+      <button id="btn-retry" class="btn primary">Yeniden dene</button>
+      <button id="btn-dquit" class="btn">Ana menü</button>
+    </nav>
+  </div>
+</section>
+
+<section id="debrief" class="screen scrim" hidden>
+  <div class="col wide">
+    <p class="eyebrow">GÖREV TAMAMLANDI</p>
+    <h2 id="rank">Profesyonel</h2>
+    <p id="rank-text" class="lead"></p>
+    <dl id="stats" class="stats"></dl>
+    <nav class="rowbtn">
+      <button id="btn-again" class="btn primary">Yeniden oyna</button>
+      <button id="btn-equit" class="btn">Ana menü</button>
+    </nav>
+  </div>
+</section>

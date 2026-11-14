@@ -134,6 +134,7 @@ export class AudioEngine {
 
   init() {
     if (this.ctx) { this.resume(); return; }
+    if (this.g.testMode) return;
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     try { this.ctx = new AC({ latencyHint: 'interactive' }); } catch { return; }
     const ctx = this.ctx; SR = ctx.sampleRate;

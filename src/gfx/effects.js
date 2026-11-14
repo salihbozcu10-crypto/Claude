@@ -113,6 +113,7 @@ export class Effects {
     this.light.setRGB(s[0] * preset.sunIntensity * 0.16 + (z[0] + h[0]) * preset.envIntensity * 0.75, s[1] * preset.sunIntensity * 0.16 + (z[1] + h[1]) * preset.envIntensity * 0.75, s[2] * preset.sunIntensity * 0.16 + (z[2] + h[2]) * preset.envIntensity * 0.75);
     for (const L of [this.alpha, this.add]) { L.uniforms.uFogColor.value.setRGB(h[0], h[1], h[2]); L.uniforms.uFogDensity.value = preset.fogDensity * 1.4; }
   }
+  clear() { this.alpha.list.length = 0; this.add.list.length = 0; this.casings.length = 0; for (const d of this.decals) { d.mesh.count = 0; d.i = 0; } this.flashLight.intensity = 0; this.blastLight.intensity = 0; }
   setSize(w, h) { this.alpha.uniforms.uRes.value.set(w, h); this.add.uniforms.uRes.value.set(w, h); }
 
   p(layer, o) {

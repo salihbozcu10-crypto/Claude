@@ -15,7 +15,7 @@ export const globalUniforms = {
 export const SURF = { concrete: 0, metal: 1, wood: 2, dirt: 3, sand: 4, fabric: 5, glass: 6, rock: 7, flesh: 8, rubber: 9 };
 export const SURF_NAMES = ['concrete', 'metal', 'wood', 'dirt', 'sand', 'fabric', 'glass', 'rock', 'flesh', 'rubber'];
 // Delinebilirlik: 5.56 için metre cinsinden en çok geçilebilir kalınlık
-export const SURF_PEN = [0.0, 0.012, 0.16, 0.0, 0.0, 0.5, 0.05, 0.0, 0.3, 0.1];
+export const SURF_PEN = [0.0, 0.035, 0.16, 0.0, 0.0, 0.5, 0.05, 0.0, 0.3, 0.1];
 
 export function patch(mat, o = {}) {
   const key = `p|${o.sky || ''}|${o.grime ? 1 : 0}|${o.vm ? 1 : 0}|${o.wind ? 1 : 0}`;
