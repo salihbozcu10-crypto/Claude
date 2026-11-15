@@ -11,6 +11,8 @@
   "devDependencies": {
     "esbuild": "^0.28.2",
     "three": "^0.187.0",
-    "three-mesh-bvh": "^0.9.18"
+    "three-mesh-bvh": "^0.9.18",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
   }
 }

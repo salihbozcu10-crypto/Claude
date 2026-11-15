@@ -1,0 +1,61 @@
+<canvas id="map" aria-label="Dünya haritası"></canvas>
+<canvas id="ovl" aria-hidden="true"></canvas>
+
+<!-- oyun içi arayüz -->
+<div id="hud" hidden>
+  <header id="topbar">
+    <button id="tb-country" class="tb-country" aria-label="Ülkem"><i id="tb-swatch"></i><span id="tb-name">—</span></button>
+    <div class="res" title="Hazine (tur başına gelir)"><span class="ic ic-gold" aria-hidden="true"></span><b id="tb-gold">0</b><small id="tb-inc">+0</small></div>
+    <div class="res" title="Asker kaynağı"><span class="ic ic-man" aria-hidden="true"></span><b id="tb-man">0</b></div>
+    <div class="res" title="Toplam ordu"><span class="ic ic-army" aria-hidden="true"></span><b id="tb-army">0</b></div>
+    <div class="res hide-s" title="Eyalet sayısı"><span class="ic ic-prov" aria-hidden="true"></span><b id="tb-prov">0</b></div>
+    <div class="sp"></div>
+    <div class="date"><b id="tb-date">Ocak 2026</b><small id="tb-turn">Tur 1</small></div>
+    <button class="tbtn" id="btn-mode" title="Harita modu">Siyasi</button>
+    <button class="tbtn" id="btn-world" title="Dünya durumu">Dünya</button>
+    <button class="tbtn icon" id="btn-menu" aria-label="Menü"><span></span><span></span><span></span></button>
+  </header>
+  <aside id="news" aria-live="polite"></aside>
+  <section id="panel" hidden></section>
+  <button id="endturn"><span class="et-label">Turu bitir</span><small id="et-sub">Şubat 2026'ya geç</small></button>
+  <div id="hint" hidden></div>
+</div>
+
+<div id="banner" hidden><small id="banner-kicker"></small><b id="banner-title"></b><span id="banner-sub"></span></div>
+<div id="fade"></div>
+
+<section id="loading" class="screen">
+  <div class="center">
+    <p class="kicker">Dünya fetih stratejisi</p>
+    <h1 class="logo">Hükümranlık</h1>
+    <div class="bar"><i id="ld-bar"></i></div>
+    <p id="ld-text" class="mono">Harita hazırlanıyor…</p>
+    <p class="note">İlk açılışta 1.300'ü aşkın eyalet cihazında oluşturulur; sonraki açılışlar hızlıdır.</p>
+  </div>
+</section>
+
+<section id="title" class="screen scrim" hidden>
+  <div class="center">
+    <p class="kicker">Dünya fetih stratejisi</p>
+    <h1 class="logo">Hükümranlık</h1>
+    <p class="lead">Bir ülke seç. Ordular kur, sınırları zorla, ittifaklar bağla; haritayı kendi renginle boya.</p>
+    <nav class="stack">
+      <button id="btn-continue" class="btn primary" hidden>Devam et</button>
+      <button id="btn-new" class="btn">Yeni oyun</button>
+      <button id="btn-help" class="btn ghost">Nasıl oynanır</button>
+      <button id="btn-settings" class="btn ghost">Ayarlar</button>
+    </nav>
+  </div>
+</section>
+
+<section id="select" hidden>
+  <div class="sel-head"><b>Bir ülke seç</b><span>Haritada bir ülkeye dokun ya da aşağıdan seç</span>
+    <label class="search" for="sel-search"><input id="sel-search" type="search" placeholder="Ülke ara…" autocomplete="off"></label>
+  </div>
+  <div id="sel-chips" class="chips"></div>
+  <div id="sel-results" class="results" hidden></div>
+  <aside id="sel-card" hidden></aside>
+  <button id="sel-back" class="btn ghost small">Geri</button>
+</section>
+
+<div id="modal" hidden><div class="modal-card" role="dialog" aria-modal="true"><div id="modal-body"></div></div></div>
