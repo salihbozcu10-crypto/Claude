@@ -1,0 +1,21 @@
+{
+  "_note": "SYNAPSE 1. Bölüm 'Ölü Kod' — diyalog satırları. who: atlas | asya | defne | system (sistem sesi, ekrandaki yazı) | defneVO (Defne'nin fısıltı iç sesi). style: oyunculuk notu (TTS hız/perde/efekt ayarı için).",
+  "lines": [
+    { "id": "L01", "scene": 1, "who": "defne", "text": "Sinyal kaynağı tam burada... Ama bu imkânsız. Bu frekanslar yirmi yıl önce bakanlık tarafından mühürlendi.", "style": "mırıltı, şaşkın, alçak ses, yavaş" },
+    { "id": "L02", "scene": 1, "who": "asya", "text": "Biri bizimle dalga geçiyor. Kim bu saatte çöplükte parti verecek?", "style": "alaycı, sert, gergin" },
+    { "id": "L03", "scene": 1, "who": "atlas", "text": "Bekle, dokunma! Bu bir tuzak değil... Bu bir imza.", "style": "önce aceleyle uyarı, sonra fısıltıya yakın, büyülenmiş" },
+    { "id": "L04", "scene": 1, "who": "system", "text": "Sizi üç yıl önce sistemden sildik. Şimdi silinme sırası onlarda.", "style": "bozuk, metalik, derin, yankılı fısıltı" },
+    { "id": "L05", "scene": 2, "who": "asya", "text": "Bizi buldular! Mega şirket ya da her kimse... O ekran bir uyarıydı. Atlas, üç yıl önceki kazadan sonra kimliklerimizi temizlediğimizi sanıyorduk!", "style": "öfkeli, hızlı, bağırarak başlar" },
+    { "id": "L06", "scene": 2, "who": "atlas", "text": "Temizlemedik, Asya. Sadece bizi görünmez kıldıklarını sanıyorduk. Ama bu sinyal... sistemin bizi hiç bırakmadığını, bilerek orada tuttuğunu söylüyor.", "style": "yorgun, ağır, düşünceli" },
+    { "id": "L07", "scene": 2, "who": "defne", "text": "Arkadaşlar... Sayaç sıfırlandığında ne olacağını çözdüm. Bu bir imha kodu değil.", "style": "titrek, korkmuş, yavaş" },
+    { "id": "L08", "scene": 2, "who": "atlas", "text": "Ne o zaman, Defne?", "style": "endişeli, yumuşak" },
+    { "id": "L09", "scene": 2, "who": "defne", "text": "Zihin senkronizasyonu. Sayaç sıfıra ulaştığında silinecek olan şehrin veri tabanı değil... bizim son üç yılımız. Birbirimizi tanıdığımız an, bu üs, bu ekip... hepsi. Yarın uyandığımızda, birbirimize tamamen yabancı olacağız.", "style": "dolu gözlerle, kırılgan, sonlara doğru fısıltı" },
+    { "id": "L10", "scene": 3, "who": "asya", "text": "Kapının kilidi iki dakika dayanır! Defne, kodu durdurmanın bir yolu yok mu?", "style": "koşarken bağırarak, nefes nefese" },
+    { "id": "L11", "scene": 3, "who": "defne", "text": "Yazılımla imkânsız! Güvenlik duvarı doğrudan insan sinir sistemine kilitlendi. Birinin terminale bağlanıp kendi nöral ağını feda etmesi gerekiyor!", "style": "panik, hızlı" },
+    { "id": "L12", "scene": 3, "who": "asya", "text": "Atlas! Ne yapıyorsun? Kafayı mı yedin? Beyin ölümün gerçekleşir!", "style": "dehşet, bağırarak" },
+    { "id": "L13", "scene": 3, "who": "atlas", "text": "Eğer anılarım silinecekse... en azından bugün, onları korumak için ne yaptığımı hatırlayarak gideyim. Defne! Ben bağlanınca sistemi dondur... sen de ana şalteri indir!", "style": "acı bir gülümsemeyle sakin başlar, sonda kararlı emir" },
+    { "id": "L14", "scene": 4, "who": "asya", "text": "Atlas... İyi misin? Başardın mı?", "style": "nefes nefese, ağlamaklı, yumuşak" },
+    { "id": "L15", "scene": 4, "who": "atlas", "text": "Başardım... Sistem durdu. Güvendeyiz.", "style": "bitkin, güçlükle yutkunarak, hafif gülümseme" },
+    { "id": "L16", "scene": 4, "who": "defneVO", "text": "Eğer bu notu okuyorsan, döngüyü yine başlattın demektir. Dördüncü kişiye dikkat et.", "style": "Defne'nin kendi sesi, fısıltı, iç ses, hafif yankı" }
+  ]
+}
