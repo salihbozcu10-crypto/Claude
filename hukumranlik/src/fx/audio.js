@@ -41,6 +41,9 @@ export class Sound {
       case 'event': for (const [f, dt] of [[880, 0], [1174.7, 0.1]]) { const g = this.osc('sine', f, t + dt, 0.003, 0.5, 0.08 * v); this.wet(g, 0.7); } break;
       case 'victory': { const seq = [[523.3, 0], [659.3, 0.18], [784, 0.36], [1046.5, 0.6], [784, 0.95], [1046.5, 1.15]]; for (const [f, dt] of seq) { const g = this.brass(f, t + dt, dt > 1 ? 1.4 : 0.32, 0.12 * v); this.wet(g, 0.7); } break; }
       case 'defeat': for (const [f, dt] of [[392, 0], [349.2, 0.5], [311.1, 1.0], [261.6, 1.5]]) { const g = this.brass(f, t + dt, 0.9, 0.1 * v, 0.4); this.wet(g, 0.8); } break;
+      case 'volley': { for (let i = 0; i < 7; i++) { const d = Math.random() * 0.45; const g = this.noise(t + d, 0.001, 0.06 + Math.random() * 0.05, (0.16 + Math.random() * 0.12) * v, 'bandpass', 1600 + Math.random() * 1400, 0.9); if (i < 2) this.wet(g, 0.5); } break; }
+      case 'cannon': { const g = this.osc('sine', 62, t, 0.003, 0.9, 0.42 * v, this.sfx, 30); this.noise(t, 0.002, 0.5, 0.3 * v, 'lowpass', 900, 0.7, this.sfx, 120); this.wet(g, 0.8); break; }
+      case 'whoosh': { const g = this.noise(t, 0.15, 0.6, 0.09 * v, 'bandpass', 400, 1.4, this.sfx, 2600); this.wet(g, 0.5); break; }
       case 'eliminate': { const g = this.osc('sine', 55, t, 0.01, 1.4, 0.4 * v, this.sfx, 30); this.wet(g, 0.8); this.noise(t, 0.05, 1.2, 0.15 * v, 'lowpass', 300, 0.7); break; }
     }
   }

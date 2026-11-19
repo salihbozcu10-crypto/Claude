@@ -7,6 +7,7 @@ import { Sound } from './fx/audio.js';
 import { assignColors } from './game/colors.js';
 import { GameState, BUILD, TERRAIN, DIFF, fmt } from './game/state.js';
 import { resolveTurn } from './game/turn.js';
+import { BATTLE_RESOLVE } from './fx/figures.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -17,6 +18,12 @@ const isTouch = (() => { try { return matchMedia('(pointer: coarse)').matches; }
 const wait = (s) => new Promise((r) => setTimeout(r, s * 1000));
 const rgb = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 const tl = (n) => Math.round(n).toLocaleString('tr-TR');
+// mevsimler: ay başına kuzey/güney kar sınırı ve deniz buzu enlemi (derece)
+const SNOW_N = [46, 47, 51, 57, 63, 69, 72, 71, 65, 58, 52, 47], SNOW_S = [-70, -70, -66, -60, -54, -49, -47, -48, -52, -58, -64, -68];
+const ICE_N = [61, 60, 62, 66, 70, 74, 77, 78, 75, 70, 66, 63], ICE_S = [-70, -72, -70, -66, -62, -60, -58, -57, -58, -60, -63, -67];
+const easeOut3 = (t) => 1 - (1 - t) ** 3;
+// yıl için doğru yönelme eki: 2026'ya, 2027'ye, 2028'e, 2030'a
+const yearDat = (y) => { const o = y % 10, t = Math.floor(y / 10) % 10; if (o) return ["'e", "'e", "'ye", "'e", "'e", "'e", "'ya", "'ye", "'e", "'a"][o]; if (t) return ["", "'a", "'ye", "'a", "'a", "'ye", "'a", "'e", "'e", "'a"][t]; return "'e"; };
 
 // ---------------------------------------------------------------- harita önbelleği (IndexedDB)
 function idb() { return new Promise((res, rej) => { const r = indexedDB.open('hukumranlik', 1); r.onupgradeneeded = () => r.result.createObjectStore('w'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
@@ -35,7 +42,7 @@ class App {
   constructor() {
     this.settings = { volume: 0.8, sfx: 0.9, music: 0.45, clouds: true, hq: !isTouch, ...(loadJSON(SET_KEY) || {}) };
     this.state = 'loading'; this.sel = 0; this.hover = 0; this.selCountry = -1; this.mode = 'political'; this.busy = false; this.time = 0; this.newsSeen = 0;
-    this.pointers = new Map(); this.diffChoice = 'normal'; this.waiters = []; this.timeScale = 1;
+    this.pointers = new Map(); this.diffChoice = 'normal'; this.waiters = []; this.timeScale = 1; this.tweens = {}; this.season = null; this.needRefresh = false;
   }
   // animasyon saatine göre bekle (yavaş cihazda da yürüyüş ile çarpışma senkron kalır)
   animWait(sec) { return new Promise((r) => this.waiters.push({ t: this.time + sec, r })); }
@@ -49,7 +56,9 @@ class App {
     try { this.view = new MapView($('map'), world); } catch (e) { $('ld-text').textContent = 'Bu cihazda WebGL 2 başlatılamadı. Güncel bir tarayıcıyla dene.'; throw e; }
     this.view.maxDpr = this.settings.hq ? 2 : 1.25; this.view.cloudsOn = this.settings.clouds; this.view.resize();
     this.st = new GameState(world); this.st.setup(0, 'normal');
-    this.ovl = new Overlay($('ovl'), this.view, this.st); this.ovl.computeLabels();
+    this.ovl = new Overlay($('ovl'), $('fxc'), this.view, this.st, { lite: isTouch }); this.ovl.computeLabels();
+    // başlık harfleri tek tek belirsin
+    for (const el of document.querySelectorAll('.logo')) { const txt = el.textContent; el.setAttribute('aria-label', txt); el.innerHTML = [...txt].map((ch, i) => `<span aria-hidden="true" style="--i:${i}">${ch}</span>`).join(''); }
     this.fx = new Particles(this.view, isTouch ? 0.6 : 1);
     this.snd = new Sound(this.settings);
     this.bindInput(); this.bindUI();
@@ -72,11 +81,18 @@ class App {
       if (this.slow > 75 && v.maxDpr > 0.7) { v.maxDpr = Math.max(0.7, Math.min(v.maxDpr, devicePixelRatio || 1) - 0.25); v.resize(); this.slow = 0; }
     }
     this.fx.update(dt);
+    // mevsim: kar ve deniz buzu sınırları yeni aya doğru yavaşça kayar
+    { const m = this.st.month, tgt = [SNOW_N[m], SNOW_S[m], ICE_N[m], ICE_S[m]]; if (!this.season) this.season = tgt.slice(); const k = 1 - Math.exp(-dt * 0.8); for (let i = 0; i < 4; i++) this.season[i] += (tgt[i] - this.season[i]) * k;
+      v.uniforms.uSnow.value.set(this.season[0], this.season[1]); v.uniforms.uIce.value.set(this.season[2], this.season[3]); }
+    if (this.needRefresh) { this.needRefresh = false; this.refresh(this.ovl.dispOwner || undefined); }
+    this.stepTweens(dt);
     v.render(dt, this.time);
-    // üst katman yalnız bir şey değiştiğinde yeniden çizilir
-    const camKey = v.target.x + v.target.y * 7.31 + v.dist * 13.7 + v.shake * 101;
-    const o = this.ovl; const anim = o.marches.length || o.markers.length || o.floaters.length || (this.state === 'play' && (this.st.orders.length || this.preview));
-    if (anim || o.dirty || camKey !== this.camKey) { o.draw(dt, this.time, this.uiState()); o.dirty = false; this.camKey = camKey; }
+    // sabit katman yalnız bir şey değiştiğinde, hareketli katman yalnız canlandırma varken çizilir
+    const camKey = v.target.x + v.target.y * 7.31 + v.dist * 13.7 + v.shake * 101; const moved = camKey !== this.camKey; this.camKey = camKey;
+    const o = this.ovl; let ui = null;
+    if (o.dirty || moved) { ui = this.uiState(); o.drawStatic(ui); o.dirty = false; }
+    const dyn = o.hasDynamic() || (this.state === 'play' && (this.st.orders.length || this.preview));
+    if (dyn || (o.dynShown && (moved || !dyn))) { o.drawDynamic(dt, this.time, ui || this.uiState()); o.dynShown = !!dyn; }
     if (this.state === 'play' && this.busy && this.marchDust) this.marchDust(dt);
     requestAnimationFrame((tt) => this.loop(tt));
   }
@@ -153,7 +169,7 @@ class App {
     }
     this.select(p);
   }
-  select(p, pan = true) { this.sel = p; this.selCountry = p ? this.st.owner[p] : -1; if (p) this.snd.play('select'); this.refresh(); this.showPanel(); if (p && pan) this.ensureVisible(p); }
+  select(p, pan = true) { this.sel = p; this.selCountry = p ? this.st.owner[p] : -1; if (p) { this.snd.play('select'); const pr = this.world.provinces[p]; this.fx.ripple(pr.ax, pr.ay, this.st.countries[this.st.owner[p]].color); } this.refresh(); this.showPanel(); if (p && pan) this.ensureVisible(p); }
   // seçili eyalet panelin altında kaldıysa haritayı boş alana kaydır
   ensureVisible(p) {
     const panel = $('panel'); if (panel.hidden) return; const r = panel.getBoundingClientRect(); const v = this.view;
@@ -191,7 +207,7 @@ class App {
   startSelect() {
     this.state = 'select'; this.hideScreens(); $('select').hidden = false; $('sel-card').hidden = true; $('sel-results').hidden = true; $('sel-search').value = '';
     // yeni dünya
-    this.st = new GameState(this.world); this.ovl.st = this.st; this.st.rng.set((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0 || 7); this.st.setup(0, 'normal'); this.ovl.computeLabels(); this.selCountry = -1; this.refresh();
+    this.season = null; this.st = new GameState(this.world); this.ovl.st = this.st; this.st.rng.set((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0 || 7); this.st.setup(0, 'normal'); this.ovl.computeLabels(); this.selCountry = -1; this.refresh();
     const picks = ['Turkey', 'United States of America', 'Russia', 'China', 'Germany', 'France', 'United Kingdom', 'Japan', 'Brazil', 'India', 'Egypt', 'Iran', 'Saudi Arabia', 'Mexico'];
     $('sel-chips').innerHTML = picks.map((ne) => { const c = this.st.countries.find((x) => x.ne === ne); return c ? `<button class="chip" data-c="${c.idx}"><i style="background:${rgb(c.color)}"></i>${esc(c.name)}</button>` : ''; }).join('');
     $('sel-chips').querySelectorAll('.chip').forEach((b) => b.addEventListener('click', () => { this.snd.init(); this.snd.play('select'); this.selCountry = +b.dataset.c; this.focusCountry(this.selCountry); this.showSelCard(); this.refresh(); }));
@@ -210,7 +226,7 @@ class App {
     box.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { this.selCountry = +b.dataset.c; box.hidden = true; this.focusCountry(this.selCountry); this.showSelCard(); this.refresh(); }));
   }
   showSelCard() {
-    const st = this.st, c = st.countries[this.selCountry]; if (!c) return; const card = $('sel-card'); const n = st.provsOf[c.idx].length; const inc = st.income(c.idx);
+    const st = this.st, c = st.countries[this.selCountry]; if (!c) return; this.pulseCountry(c.idx, [255, 236, 190], c.capital, 0.15); const card = $('sel-card'); const n = st.provsOf[c.idx].length; const inc = st.income(c.idx);
     const hard = n <= 3 ? 'Çok zor' : n <= 8 ? 'Zor' : n <= 25 ? 'Orta' : 'Kolay';
     card.innerHTML = `<div class="p-head"><i class="flag" style="background:${rgb(c.color)}"></i><h2>${esc(c.name)}</h2><span></span></div>
       <p class="p-sub">Başkent <b>${esc(st.provNames[c.capital])}</b> · zorluk tahmini <b>${hard}</b></p>
@@ -225,7 +241,10 @@ class App {
   startGame(ci) {
     const st = this.st; st.player = ci; st.diff = this.diffChoice; // setup zaten yapıldı; yalnız oyuncu ve zorluk
     this.state = 'play'; this.hideScreens(); $('hud').hidden = false; this.newsSeen = st.news.length; this.select(0);
-    this.focusCountry(ci); this.updateTop(); this.refresh();
+    this.focusCountry(ci); this.snapNums = true; this.updateTop(); this.snapNums = false; this.refresh();
+    const cap = this.world.provinces[st.countries[ci].capital];
+    this.pulseCountry(ci, [255, 222, 140], st.countries[ci].capital, 0.9);
+    this.fx.fireworks(cap.ax, cap.ay, [st.countries[ci].color, [255, 220, 120], [255, 255, 255]], 1.2); this.snd.play('ally', { delay: 1.1, vol: 0.6 });
     this.banner(st.dateText, `Hükümranlığın başlıyor`, `${st.countries[ci].name} senin ellerinde`);
     this.hint('Bir eyaletine dokun, sonra komşu bir eyalete dokunarak ordu gönder.');
     this.autosave();
@@ -234,7 +253,7 @@ class App {
     const d = loadJSON(SAVE_KEY); const st = new GameState(this.world);
     if (!d || !st.load(d)) { this.toastModal('Kayıt açılamadı', 'Kayıtlı oyun bu harita sürümüyle uyumlu değil. Yeni bir oyun başlat.'); return; }
     this.st = st; this.ovl.st = st; this.ovl.computeLabels(); this.state = 'play'; this.hideScreens(); $('hud').hidden = false; this.newsSeen = st.news.length; this.select(0);
-    this.focusCountry(st.player); this.updateTop(); this.refresh(); this.banner(st.dateText, 'Kaldığın yerden', st.countries[st.player].name);
+    this.season = null; this.focusCountry(st.player); this.snapNums = true; this.updateTop(); this.snapNums = false; this.refresh(); this.pulseCountry(st.player, [255, 222, 140], st.countries[st.player].capital, 0.8); this.banner(st.dateText, 'Kaldığın yerden', st.countries[st.player].name);
   }
   autosave() { if (this.state === 'play' && this.st.countries[this.st.player]?.alive) saveRaw(SAVE_KEY, this.st.serialize()); }
 
@@ -242,13 +261,23 @@ class App {
   updateTop() {
     const st = this.st, c = st.countries[st.player]; if (!c) return; const inc = st.income(st.player); this.ovl.dirty = true;
     $('tb-swatch').style.background = rgb(c.color); $('tb-name').textContent = c.name;
-    $('tb-gold').textContent = tl(c.gold); const s = $('tb-inc'); s.textContent = (inc.net >= 0 ? '+' : '') + inc.net.toFixed(0); s.classList.toggle('neg', inc.net < 0);
-    $('tb-man').textContent = fmt(c.manpower); $('tb-army').textContent = fmt(st.totalTroops(st.player)); $('tb-prov').textContent = st.provsOf[st.player].length;
-    $('tb-date').textContent = st.dateText; $('tb-turn').textContent = 'Tur ' + (st.turn + 1);
-    const next = new Date(st.year, st.month + 1, 1); $('et-sub').textContent = `${['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'][next.getMonth()]} ${next.getFullYear()}'e geç`;
+    this.tweenNum('tb-gold', c.gold, tl); const s = $('tb-inc'); s.textContent = (inc.net >= 0 ? '+' : '') + inc.net.toFixed(0); s.classList.toggle('neg', inc.net < 0);
+    this.tweenNum('tb-man', c.manpower, fmt); this.tweenNum('tb-army', st.totalTroops(st.player), fmt); this.tweenNum('tb-prov', st.provsOf[st.player].length, (x) => String(Math.round(x)));
+    const dEl = $('tb-date'); if (dEl.textContent !== st.dateText) { const first = !this.dateShown; dEl.textContent = st.dateText; this.dateShown = true; if (!first) { dEl.classList.remove('flip'); void dEl.offsetWidth; dEl.classList.add('flip'); } }
+    $('tb-turn').textContent = 'Tur ' + (st.turn + 1);
+    const next = new Date(st.year, st.month + 1, 1); $('et-sub').textContent = `${['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'][next.getMonth()]} ${next.getFullYear()}${yearDat(next.getFullYear())} geç`;
     const et = $('endturn'); let chip = et.querySelector('.badge'); if (st.orders.length) { if (!chip) { chip = document.createElement('span'); chip.className = 'badge'; et.appendChild(chip); } chip.textContent = st.orders.length; } else if (chip) chip.remove();
     $('btn-mode').textContent = { political: 'Siyasi', terrain: 'Arazi', diplomacy: 'Diplomasi' }[this.mode];
   }
+  // üst şeritteki sayılar yeni değere akarak döner; artışta yeşil, azalışta kırmızı parlar
+  tweenNum(id, val, f) {
+    const el = $(id); let tw = this.tweens[id];
+    if (!tw || this.snapNums) { this.tweens[id] = { el, from: val, to: val, cur: val, t: 1, f }; el.textContent = f(val); return; }
+    tw.f = f; if (Math.abs(val - tw.to) < 0.5) return;
+    const up = val > tw.cur; tw.from = tw.cur; tw.to = val; tw.t = 0;
+    el.classList.remove('up', 'down'); void el.offsetWidth; el.classList.add(up ? 'up' : 'down');
+  }
+  stepTweens(dt) { for (const id in this.tweens) { const tw = this.tweens[id]; if (tw.t >= 1) continue; tw.t = Math.min(1, tw.t + dt / 0.9); tw.cur = tw.from + (tw.to - tw.from) * easeOut3(tw.t); tw.el.textContent = tw.f(tw.cur); } }
   cycleMode() { this.mode = { political: 'terrain', terrain: 'diplomacy', diplomacy: 'political' }[this.mode]; this.refresh(); this.updateTop(); }
   hint(text, sec = 6) { const h = $('hint'); h.textContent = text; h.hidden = false; clearTimeout(this.hintT); this.hintT = setTimeout(() => { h.hidden = true; }, sec * 1000); }
 
@@ -284,24 +313,41 @@ class App {
     }
     panel.innerHTML = html; panel.hidden = false; if (innerWidth <= 600) $('hint').hidden = true;
     $('p-close').addEventListener('click', () => this.select(0));
-    panel.querySelectorAll('[data-rec]').forEach((b) => b.addEventListener('click', () => { const n = st.recruit(p, +b.dataset.rec); if (n) { this.snd.play('coin'); this.ovl.addFloater(pr.ax, pr.ay, '+' + fmt(n), '#f2c14e'); } this.updateTop(); this.showPanel(); }));
-    panel.querySelectorAll('[data-build]').forEach((b) => b.addEventListener('click', () => { if (st.build(p, b.dataset.build)) { this.snd.play('build'); this.ovl.addFloater(pr.ax, pr.ay, BUILD[b.dataset.build].name, '#efe6d0'); this.fx.capture(pr.ax, pr.ay, [217, 177, 92]); } this.updateTop(); this.showPanel(); }));
+    panel.querySelectorAll('[data-rec]').forEach((b) => b.addEventListener('click', () => { const n = st.recruit(p, +b.dataset.rec); if (n) { this.snd.play('coin'); this.snd.play('march', { vol: 0.35 }); this.ovl.addFloater(pr.ax, pr.ay, '+' + fmt(n), '#f2c14e'); this.ovl.addPop(pr.ax, pr.ay, 'recruit', st.countries[P].color); this.fx.sparkle(pr.ax, pr.ay, st.countries[P].color); } this.updateTop(); this.showPanel(); }));
+    panel.querySelectorAll('[data-build]').forEach((b) => b.addEventListener('click', () => { if (st.build(p, b.dataset.build)) { const kind = b.dataset.build; this.snd.play('build'); this.ovl.addFloater(pr.ax, pr.ay - 10, BUILD[kind].name, '#efe6d0', { delay: 0.25 }); this.ovl.addPop(pr.ax, pr.ay, kind, null, { lvl: st[kind][p], life: 1.3 }); this.fx.capture(pr.ax, pr.ay, [217, 177, 92]); for (let i = 0; i < 4; i++) this.fx.dust(pr.ax + (Math.random() - 0.5) * 8, pr.ay + (Math.random() - 0.5) * 5); } this.updateTop(); this.showPanel(); }));
     panel.querySelectorAll('[data-cancel]').forEach((b) => b.addEventListener('click', () => { st.orders.splice(+b.dataset.cancel, 1); this.snd.play('click'); this.updateTop(); this.showPanel(); }));
     panel.querySelectorAll('[data-dip]').forEach((b) => b.addEventListener('click', () => this.diplomacy(o, b.dataset.dip)));
   }
 
+  // ülke genelinde yayılan renk dalgası (savaş kırmızı, ittifak yeşil, barış açık mavi, taç giyme altın)
+  pulseCountry(ci, col, fromP, base = 0) {
+    const W = this.world, o = W.provinces[fromP]; const ps = this.st.provsOf[ci]; if (!ps?.length || !o) return;
+    let maxD = 0; for (const p of ps) { const pr = W.provinces[p]; let dx = pr.cx - o.ax; dx -= W.W * Math.round(dx / W.W); const d = Math.hypot(dx, pr.cy - o.ay) + Math.sqrt(pr.area) * 0.6; if (d > maxD) maxD = d; }
+    const radius = Math.max(50, maxD / 2.6); for (const p of ps) this.view.wave(p, col, o.ax, o.ay, radius, base);
+  }
+  // ci ülkesinin verilen eyalete en yakın eyaleti
+  nearestProv(ci, toP) { const W = this.world, t = W.provinces[toP]; let best = this.st.countries[ci].capital, bd = Infinity; for (const p of this.st.provsOf[ci]) { const pr = W.provinces[p]; let dx = pr.ax - t.ax; if (dx > W.W / 2) dx -= W.W; else if (dx < -W.W / 2) dx += W.W; const d = dx * dx + (pr.ay - t.ay) ** 2; if (d < bd) { bd = d; best = p; } } return best; }
+  // diplomasi anı: karşı ülkede renk dalgası, başkentler arasında ışıklı yay
+  diploFx(kind, other, toMe = false) {
+    const st = this.st, P = st.player; if (!st.countries[other]?.alive || !st.countries[P]?.alive) return;
+    const myCap = st.countries[P].capital, oc = st.countries[other].capital;
+    const col = kind === 'war' ? [226, 64, 44] : kind === 'ally' ? [96, 214, 130] : kind === 'peace' ? [200, 228, 245] : [255, 214, 120];
+    this.pulseCountry(other, col, this.nearestProv(other, myCap));
+    if (toMe) this.ovl.addArc(oc, myCap, col, kind); else this.ovl.addArc(myCap, oc, col, kind);
+    if (kind === 'war') this.snd.play('whoosh', { vol: 0.7, delay: 0.1 });
+  }
   diplomacy(o, kind) {
     const st = this.st, P = st.player, c = st.countries[o];
     if (kind === 'war') {
       this.confirm('Savaş ilanı', `${c.name} ülkesine savaş ilan etmek üzeresin. Müttefikleri de sana karşı savaşa girer${st.alliesOf(o).length ? ` (${st.alliesOf(o).map((a) => st.countries[a].name).join(', ')})` : ''}.`, 'Savaş ilan et', 'war', () => {
-        const joined = st.declareWar(P, o, true); this.snd.play('war'); this.banner('Savaş ilanı', `${c.name}`, joined.length ? `Savaşa katılanlar: ${joined.map(([x]) => st.countries[x].name).join(', ')}` : 'Ordular sınıra!', 'war'); this.view.shake = 0.6; this.flushNews(); this.refresh(); this.showPanel(); this.updateTop();
+        const joined = st.declareWar(P, o, true); this.snd.play('war'); this.diploFx('war', o); joined.forEach(([x], i) => { if (x !== P) this.pulseCountry(x, [226, 64, 44], this.nearestProv(x, st.countries[P].capital), 0.6 + i * 0.25); }); this.banner('Savaş ilanı', `${c.name}`, joined.length ? `Savaşa katılanlar: ${joined.map(([x]) => st.countries[x].name).join(', ')}` : 'Ordular sınıra!', 'war'); this.view.shake = 0.6; this.flushNews(); this.refresh(); this.showPanel(); this.updateTop();
       });
     } else if (kind === 'peace') {
-      if (st.acceptsPeace(o, P)) { st.makePeace(P, o); this.snd.play('peace'); this.banner('Barış', `${c.name} ile barış`, '12 tur ateşkes', 'peace'); }
+      if (st.acceptsPeace(o, P)) { st.makePeace(P, o); this.snd.play('peace'); this.diploFx('peace', o); this.banner('Barış', `${c.name} ile barış`, '12 tur ateşkes', 'peace'); }
       else { this.snd.play('click'); this.toastModal('Teklif reddedildi', `${c.name} barışa yanaşmıyor: savaşın gidişatı onların lehine. Önce birkaç eyalet al ya da ordularını yıprat.`); }
       this.flushNews(); this.refresh(); this.showPanel();
     } else if (kind === 'ally') {
-      if (st.acceptsAlliance(o, P)) { st.makeAlliance(P, o); this.snd.play('ally'); this.banner('İttifak', `${c.name} ile ittifak`, 'Biri saldırıya uğrarsa diğeri savaşa girer', 'ally'); }
+      if (st.acceptsAlliance(o, P)) { st.makeAlliance(P, o); this.snd.play('ally'); this.diploFx('ally', o); this.banner('İttifak', `${c.name} ile ittifak`, 'Biri saldırıya uğrarsa diğeri savaşa girer', 'ally'); }
       else { this.snd.play('click'); this.toastModal('Teklif reddedildi', `${c.name} ittifak için yeterince güvenmiyor (ilişki en az +45 olmalı). İlişkileri geliştirmeyi dene.`); }
       this.flushNews(); this.refresh(); this.showPanel();
     } else if (kind === 'break') { st.breakAlliance(P, o); this.snd.play('click'); this.refresh(); this.showPanel(); }
@@ -337,7 +383,7 @@ class App {
   // ---------------------------------------------------------------- tur sonu ve animasyon
   async endTurn() {
     if (this.busy || this.state !== 'play') return; const st = this.st; const P = st.player;
-    this.busy = true; $('endturn').classList.add('busy'); $('hint').hidden = true; this.preview = null; this.closeModal();
+    this.busy = true; $('endturn').classList.add('busy'); $('hud').classList.add('busy'); this.timeScale = this.settings.fast ? 1.9 : 1; $('hint').hidden = true; this.preview = null; this.closeModal();
     const keepSel = this.sel; this.sel = 0; $('panel').hidden = true; this.refresh();
     this.snd.play('turn');
     const beforeOwner = Int16Array.from(st.owner), beforeTroops = Int32Array.from(st.troops); const goldBefore = st.countries[P].gold;
@@ -355,26 +401,39 @@ class App {
     this.marchDust = (dt) => { for (const m of this.ovl.marches) { if (m.arrived || Math.random() > dt * 14) continue; const k = Math.max(0, Math.min(1, (m.t - m.delay) / m.dur)); const a = W.provinces[m.from], b = W.provinces[m.to]; let bx = b.ax; if (bx - a.ax > W.W / 2) bx -= W.W; else if (a.ax - bx > W.W / 2) bx += W.W; this.fx.dust(a.ax + (bx - a.ax) * k, a.ay + (b.ay - a.ay) * k); } };
     await this.animWait(DUR + 0.15);
     this.marchDust = null;
-    // varışlar: takviye, savaş, fetih
-    let clashes = 0, captureSfx = 0; const seenBattle = new Set(); let staggered = 0;
+    // varışlar: takviye, savaş sahnesi, fetih (sonuç sahnenin doruğunda uygulanır)
+    let clashes = 0, captureSfx = 0, volleys = 0, staggered = 0; const seenBattle = new Set(); const pending = [];
     for (const m of ev.moves) {
       const pr = W.provinces[m.to]; const visible = onScreen(m.to);
       if (m.result === 'join') dTroops[m.to] += m.n;
       else if (m.result === 'cancel') dTroops[m.from] += m.n;
       else if (m.battle) {
-        const r = m.battle;
-        if (visible && !seenBattle.has(m.to)) { seenBattle.add(m.to); const big = (r.n + r.D) > 15000; this.fx.battle(pr.ax, pr.ay, Math.min(1.5, (r.n + r.D) / 12000)); this.ovl.addMarker(pr.ax, pr.ay, 'swords', 1.3); if (clashes++ < 5) this.snd.play('clash', { big, vol: m.player || st.owner[m.to] === P || beforeOwner[m.to] === P ? 1 : 0.55 }); if (m.player || beforeOwner[m.to] === P) this.view.shake = Math.max(this.view.shake, big ? 0.5 : 0.25); }
-        if (visible) { if (r.attLoss > 0) this.ovl.addFloater(pr.ax - 10, pr.ay, '−' + fmt(r.attLoss), rgb(st.countries[r.att].color.map((x) => Math.min(255, x + 60))), { delay: 0.1 }); if (r.defLoss > 0) this.ovl.addFloater(pr.ax + 14, pr.ay + 4, '−' + fmt(r.defLoss), '#ff8a70', { delay: 0.25 }); }
-        if (r.won) {
-          const prevCol = st.countries[dOwner[m.to]].color; dOwner[m.to] = m.owner; dTroops[m.to] = r.survivors;
-          this.view.capture(m.to, prevCol, 0.15); this.refresh(dOwner);
-          if (visible) { this.fx.capture(pr.ax, pr.ay, st.countries[m.owner].color, 0.2); this.ovl.addMarker(pr.ax, pr.ay, 'flag', 2.2); this.ovl.markers[this.ovl.markers.length - 1].color = st.countries[m.owner].color; }
-          if ((m.player || beforeOwner[m.to] === P) && captureSfx++ < 3) this.snd.play('capture', { delay: 0.2, vol: m.player ? 1 : 0.7 });
-        } else { dTroops[m.to] = r.survD; if (r.back) dTroops[m.from] += r.back; }
+        const r = m.battle; const mineInvolved = m.player || beforeOwner[m.to] === P; const big = (r.n + r.D) > 15000;
+        if (visible && !seenBattle.has(m.to)) {
+          seenBattle.add(m.to); const fr = W.provinces[m.from];
+          this.ovl.addBattle(pr.ax, pr.ay, st.countries[r.att].color, st.countries[r.def].color, r.won, fr.ax, fr.ay, big);
+          if (this.view.pxScale < 0.7) this.ovl.addMarker(pr.ax, pr.ay, 'swords', 1.7);
+          this.fx.battle(pr.ax, pr.ay, Math.min(1.5, (r.n + r.D) / 12000), 0.3);
+          for (const d of [0.38, 0.7, 1.02]) this.fx.volley(pr.ax + (Math.random() - 0.5) * 6, pr.ay + (Math.random() - 0.5) * 4, d);
+          if (clashes++ < 5) { const vol = mineInvolved ? 1 : 0.5; this.snd.play('clash', { big, vol, delay: 0.3 }); if (volleys++ < 3) { this.snd.play('volley', { delay: 0.4, vol }); this.snd.play('volley', { delay: 0.78, vol: vol * 0.8 }); } if (big && mineInvolved) this.snd.play('cannon', { delay: 0.55, vol }); }
+          if (mineInvolved) this.view.shake = Math.max(this.view.shake, big ? 0.5 : 0.25);
+        }
+        const resolve = () => {
+          if (visible) { if (r.attLoss > 0) this.ovl.addFloater(pr.ax - 10, pr.ay, '−' + fmt(r.attLoss), rgb(st.countries[r.att].color.map((x) => Math.min(255, x + 60)))); if (r.defLoss > 0) this.ovl.addFloater(pr.ax + 14, pr.ay + 4, '−' + fmt(r.defLoss), '#ff8a70', { delay: 0.12 }); }
+          if (r.won) {
+            const prevCol = st.countries[dOwner[m.to]].color; dOwner[m.to] = m.owner; dTroops[m.to] = r.survivors;
+            this.view.capture(m.to, prevCol, 0); this.needRefresh = true;
+            if (visible) { this.fx.capture(pr.ax, pr.ay, st.countries[m.owner].color, 0.05); this.ovl.addMarker(pr.ax, pr.ay, 'flag', 2.2, st.countries[m.owner].color); }
+            if (mineInvolved && captureSfx++ < 3) this.snd.play('capture', { vol: m.player ? 1 : 0.7 });
+          } else { dTroops[m.to] = r.survD; if (r.back) dTroops[m.from] += r.back; }
+          this.ovl.dirty = true;
+        };
+        if (visible) pending.push(this.animWait(BATTLE_RESOLVE + 0.02).then(resolve)); else resolve();
         if (visible && staggered++ < 14) await this.animWait(0.07);
       }
     }
-    await this.animWait(seenBattle.size ? 0.9 : 0.25);
+    await Promise.all(pending);
+    await this.animWait(seenBattle.size ? 0.55 : 0.2);
     // durum eşitlenir
     this.ovl.dispOwner = null; this.ovl.dispTroops = null; this.ovl.computeLabels(); this.refresh(); this.updateTop();
     const gained = st.countries[P].gold - goldBefore; if (st.countries[P].alive) { const cap = W.provinces[st.countries[P].capital]; this.ovl.addFloater(cap.ax, cap.ay - 6, (gained >= 0 ? '+' : '') + gained.toFixed(0) + ' altın', gained >= 0 ? '#f2c14e' : '#ff8a70', { delay: 0.1 }); }
@@ -387,13 +446,14 @@ class App {
     if (elimByMe !== undefined && !capWin) this.banner('Fetih', `${st.countries[elimByMe].name} haritadan silindi`, 'Toprakları artık senin', 'ally');
     this.flushNews();
     // oyuncuya gelen kararlar ve olaylar
+    this.timeScale = 1;
     for (const pu of ev.popups) await this.popup(pu);
     // sonuç
     const mine = st.provsOf[P]?.length || 0;
     if (!st.countries[P].alive || mine === 0) { this.gameOver(false); }
     else if (mine >= Math.ceil(st.P * 0.5) && !st.victoryShown) { st.victoryShown = true; this.gameOver(true); }
     this.autosave();
-    this.busy = false; $('endturn').classList.remove('busy'); if (keepSel && st.owner[keepSel] === P) this.select(keepSel, false);
+    this.timeScale = 1; this.busy = false; $('endturn').classList.remove('busy'); $('hud').classList.remove('busy'); if (keepSel && st.owner[keepSel] === P) this.select(keepSel, false);
   }
 
   popup(pu) {
@@ -405,6 +465,7 @@ class App {
         const vsMe = pu.to === P || st.atWar(pu.from, P); if (!vsMe) { done(); return; }
         const helpers = st.alliesOf(P).filter((a) => st.atWar(a, pu.from)).map((a) => st.countries[a].name).join(', ');
         this.snd.play('war'); this.view.shake = 0.7;
+        this.diploFx('war', pu.from, true);
         if (pu.to === P) this.banner('Savaş', `${c.name} sana savaş açtı`, helpers ? `Müttefiklerin yanında: ${helpers}` : 'Sınırlarını savun!', 'war');
         else this.banner('Savaş', `${c.name}, ${st.countries[pu.to].name} ülkesine saldırdı`, 'İttifak gereği sen de savaştasın', 'war');
         this.refresh(); this.animWait(1.6).then(done); return;
@@ -412,12 +473,12 @@ class App {
       if (pu.type === 'peaceOffer') {
         if (!st.atWar(pu.from, P)) { done(); return; }
         this.snd.play('event'); this.openModal(`<p class="kicker">Diplomasi</p><h2>${esc(c.name)} barış istiyor</h2><p>Savaş skoru: ${st.score(P, pu.from) >= 0 ? '+' : ''}${st.score(P, pu.from).toFixed(0)}. Kabul edersen bugünkü sınırlar geçerli olur ve 12 tur ateşkes başlar.</p><div class="actions"><button class="btn ghost" id="pu-no">Reddet</button><button class="btn primary" id="pu-ok">Barışı kabul et</button></div>`);
-        $('pu-no').addEventListener('click', () => { this.closeModal(); done(); }); $('pu-ok').addEventListener('click', () => { st.makePeace(P, pu.from); this.snd.play('peace'); this.closeModal(); this.flushNews(); this.refresh(); this.banner('Barış', `${c.name} ile barış`, '12 tur ateşkes', 'peace'); done(); }); return;
+        $('pu-no').addEventListener('click', () => { this.closeModal(); done(); }); $('pu-ok').addEventListener('click', () => { st.makePeace(P, pu.from); this.snd.play('peace'); this.diploFx('peace', pu.from, true); this.closeModal(); this.flushNews(); this.refresh(); this.banner('Barış', `${c.name} ile barış`, '12 tur ateşkes', 'peace'); done(); }); return;
       }
       if (pu.type === 'allyOffer') {
         if (st.atWar(pu.from, P) || st.allied(pu.from, P)) { done(); return; }
         this.snd.play('event'); this.openModal(`<p class="kicker">Diplomasi</p><h2>${esc(c.name)} ittifak öneriyor</h2><p>İttifakta biri saldırıya uğrarsa diğeri savaşa girer. ${st.enemiesOf(pu.from).length ? `Şu an savaştıkları: ${st.enemiesOf(pu.from).map((e) => st.countries[e].name).join(', ')}.` : ''}</p><div class="actions"><button class="btn ghost" id="pu-no">Reddet</button><button class="btn primary" id="pu-ok">İttifakı kabul et</button></div>`);
-        $('pu-no').addEventListener('click', () => { this.closeModal(); done(); }); $('pu-ok').addEventListener('click', () => { st.makeAlliance(P, pu.from); this.snd.play('ally'); this.closeModal(); this.flushNews(); this.refresh(); done(); }); return;
+        $('pu-no').addEventListener('click', () => { this.closeModal(); done(); }); $('pu-ok').addEventListener('click', () => { st.makeAlliance(P, pu.from); this.snd.play('ally'); this.diploFx('ally', pu.from, true); this.closeModal(); this.flushNews(); this.refresh(); done(); }); return;
       }
       done();
     });
@@ -443,7 +504,7 @@ class App {
   gameOver(win) {
     const st = this.st, P = st.player, c = st.countries[P]; const s = st.stats || { provinces: [] };
     const spark = (() => { const v = s.provinces; if (v.length < 2) return ''; const mx = Math.max(...v, 1); const pts = v.map((y, i) => `${(i / (v.length - 1)) * 300},${58 - (y / mx) * 54}`).join(' '); return `<svg class="spark" viewBox="0 0 300 60" preserveAspectRatio="none" aria-label="Eyalet sayısının seyri"><polyline points="${pts}" fill="none" stroke="#d9b15c" stroke-width="2"/></svg>`; })();
-    if (win) { this.snd.play('victory'); const cap = this.world.provinces[c.capital]; this.view.flyTo(cap.ax, cap.ay, this.view.maxDist * 0.5); for (let i = 0; i < 5; i++) this.fx.fireworks(cap.ax + (Math.random() - 0.5) * 120, cap.ay + (Math.random() - 0.5) * 80, [c.color, [255, 220, 120], [255, 255, 255]], i * 0.6); }
+    if (win) { this.snd.play('victory'); const cap = this.world.provinces[c.capital]; this.pulseCountry(P, [255, 222, 140], c.capital, 0.3); this.view.flyTo(cap.ax, cap.ay, this.view.maxDist * 0.5); for (let i = 0; i < 5; i++) this.fx.fireworks(cap.ax + (Math.random() - 0.5) * 120, cap.ay + (Math.random() - 0.5) * 80, [c.color, [255, 220, 120], [255, 255, 255]], i * 0.6); }
     else this.snd.play('defeat');
     this.openModal(`<p class="kicker">${win ? 'Zafer' : 'Yenilgi'} · ${st.dateText}</p><h2>${win ? `${esc(c.name)} dünyanın yarısına hükmediyor` : `${esc(c.name)} tarihe karıştı`}</h2>
       <p>${win ? 'Haritanın yarısı senin renginde. İstersen fethe devam edebilirsin.' : 'Son eyaletin de düştü. Başka bir ülkeyle yeniden dene.'}</p>
@@ -473,11 +534,12 @@ class App {
       <label class="field" for="s-sfx">Efektler<input id="s-sfx" type="range" min="0" max="1" step="0.05" value="${s.sfx}"></label>
       <label class="field check" for="s-cloud"><input id="s-cloud" type="checkbox" ${s.clouds ? 'checked' : ''}> Bulutlar (uzak görünümde)</label>
       <label class="field check" for="s-hq"><input id="s-hq" type="checkbox" ${s.hq ? 'checked' : ''}> Yüksek çözünürlük (pil ve performans için kapat)</label>
+      <label class="field check" for="s-fast"><input id="s-fast" type="checkbox" ${s.fast ? 'checked' : ''}> Hızlı tur animasyonu</label>
       <div class="actions"><button class="btn primary" id="s-ok">Tamam</button></div>`, true);
     const save = () => { try { localStorage.setItem(SET_KEY, JSON.stringify(s)); } catch { /* yoksay */ } };
     const bind = (id, key, fn) => $(id).addEventListener('input', (e) => { s[key] = e.target.type === 'checkbox' ? e.target.checked : +e.target.value; save(); fn && fn(); });
     bind('s-vol', 'volume', () => this.snd.apply()); bind('s-mus', 'music', () => { this.snd.apply(); if (s.music <= 0) this.snd.stopMusic(); }); bind('s-sfx', 'sfx', () => this.snd.apply());
-    bind('s-cloud', 'clouds', () => { this.view.cloudsOn = s.clouds; }); bind('s-hq', 'hq', () => { this.view.maxDpr = s.hq ? 2 : 1.25; this.view.resize(); this.ovl.resize(); });
+    bind('s-cloud', 'clouds', () => { this.view.cloudsOn = s.clouds; }); bind('s-hq', 'hq', () => { this.view.maxDpr = s.hq ? 2 : 1.25; this.view.resize(); this.ovl.resize(); }); bind('s-fast', 'fast');
     $('s-ok').addEventListener('click', () => this.closeModal());
   }
   showHelp() {

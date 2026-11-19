@@ -90,6 +90,19 @@ export class Particles {
       this.p(this.add, { x: cx, z: cz, y: h, life: 0.25, s0: 8 * k, s1: 30 * k, r: 1, g: 1, b: 1, a: 1, frame: 5, delay: d });
       for (let i = 0; i < 40 * this.budget; i++) { const a = rr(0, 6.28), e = rr(-1.2, 1.2), sp = rr(20, 46) * k; this.p(this.add, { x: cx, z: cz, y: h, vx: Math.cos(a) * Math.cos(e) * sp, vz: Math.sin(a) * Math.cos(e) * sp, vy: Math.sin(e) * sp, life: rr(1.0, 1.8), s0: 2.2 * k, s1: 0.6 * k, r: c[0] / 255 + 0.3, g: c[1] / 255 + 0.3, b: c[2] / 255 + 0.3, a: 1, frame: 10, grav: 22 * k, drag: 1.1, delay: d }); } }
   }
+  // dokunma halkası
+  ripple(mx, my, col) { const [x, z] = this.wpos(mx, my); const k = this.k(); this.p(this.add, { x, z, y: 0.5, life: 0.55, s0: 3 * k, s1: 30 * k, r: col[0] / 255 * 0.8 + 0.25, g: col[1] / 255 * 0.8 + 0.25, b: col[2] / 255 * 0.8 + 0.25, a: 0.85, frame: 6, rv: 0, flat: true }); }
+  // asker toplama: ülke renginde yükselen kıvılcımlar
+  sparkle(mx, my, col) {
+    const [x, z] = this.wpos(mx, my); const k = this.k(); const r = Math.min(1, col[0] / 255 + 0.35), g = Math.min(1, col[1] / 255 + 0.35), b = Math.min(1, col[2] / 255 + 0.35);
+    for (let i = 0; i < 12 * this.budget; i++) this.p(this.add, { x: x + rr(-6, 6) * k, z: z + rr(-4, 4) * k, y: 1, vx: rr(-3, 3) * k, vz: rr(-3, 3) * k, vy: rr(14, 30) * k, life: rr(0.7, 1.3), s0: rr(1.6, 2.8) * k, s1: 0.4 * k, r, g, b, a: 1, frame: 10, drag: 1.4, delay: rr(0, 0.25) });
+    this.p(this.add, { x, z, y: 0.5, life: 0.8, s0: 4 * k, s1: 36 * k, r, g, b, a: 0.7, frame: 6, rv: 0, flat: true });
+  }
+  // tüfek yaylım ateşi: süren savaşta barut dumanı ve küçük parlamalar
+  volley(mx, my, delay = 0) {
+    const [x, z] = this.wpos(mx, my); const k = this.k(); const q = this.budget;
+    for (let i = 0; i < 5 * q; i++) { const ox = rr(-7, 7) * k, oz = rr(-4, 4) * k; const d = delay + rr(0, 0.25); this.p(this.add, { x: x + ox, z: z + oz, y: 4 * k, life: 0.14, s0: 3 * k, s1: 7 * k, r: 1, g: 0.9, b: 0.6, a: 1, frame: 8, rv: 0, delay: d }); this.p(this.alpha, { x: x + ox, z: z + oz, y: 4 * k, vx: rr(-3, 3) * k, vy: rr(3, 8) * k, vz: rr(-2, 2) * k, life: rr(1.2, 2.2), s0: 3 * k, s1: rr(10, 16) * k, r: 0.78, g: 0.77, b: 0.74, a: 0.4, frame: (Math.random() * 4) | 0, drag: 1, delay: d, fadeIn: 0.12 }); }
+  }
   update(dt) { this.alpha.update(dt); this.add.update(dt); }
   clear() { this.alpha.list.length = 0; this.add.list.length = 0; }
 }

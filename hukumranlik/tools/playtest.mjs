@@ -50,7 +50,7 @@ async function desktop() {
   // tur sonu animasyonu
   await page.click('#endturn');
   await page.waitForFunction(() => window.__app.ovl.marches.some((m) => m.player && m.t - m.delay > m.dur * 0.55), null, { timeout: 60000 }).catch(() => console.log('yürüyüş yakalanamadı')); await shot('yuruyus');
-  await page.waitForFunction(() => window.__app.ovl.markers.length > 0, null, { timeout: 60000 }).catch(() => console.log('çarpışma yakalanamadı')); await page.waitForFunction(() => window.__app.ovl.markers.some((m) => m.t > 0.35), null, { timeout: 30000 }).catch(() => {}); await shot('carpisma');
+  await page.waitForFunction(() => window.__app.ovl.battles.some((B) => B.t - B.delay > 0.6), null, { timeout: 60000 }).catch(() => console.log('çarpışma yakalanamadı')); await shot('carpisma');
   await page.waitForFunction(() => !window.__app.busy, null, { timeout: 60000 }).catch(() => {}); await shot('sonuc');
   await page.waitForFunction(() => !window.__app.busy || document.querySelector('#modal:not([hidden])'), null, { timeout: 60000 }); await closePopups(page);
   // birkaç tur daha (otomatik)

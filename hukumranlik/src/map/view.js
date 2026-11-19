@@ -2,6 +2,9 @@
 import * as THREE from 'three';
 
 const PROV_TEX_W = 64; // eyalet bilgi dokuları 64 sütunlu 2B düzende
+// Miller izdüşümünün harita üst/alt enlemleri (generate.js ile aynı: 84°K, 58°G)
+const millerY = (lat) => 1.25 * Math.log(Math.tan(Math.PI / 4 + 0.4 * lat * Math.PI / 180));
+const MILLER_Y0 = millerY(84), MILLER_Y1 = millerY(-58);
 
 const VERT = /* glsl */`
 out vec2 vUv; out vec3 vWorld;
@@ -12,6 +15,7 @@ precision highp float; precision highp int;
 in vec2 vUv; in vec3 vWorld; out vec4 fragColor;
 uniform sampler2D tId, tField, tTerrain, tCol, tPrev, tAnim, tOwn, tNoise;
 uniform vec2 uSize; uniform float uTime, uPx, uPolitical, uClouds, uPlayer; uniform vec2 uRes; uniform vec3 uCamPos;
+uniform vec2 uMiller, uSnow, uIce;                // Miller izdüşümü sınırları; mevsimlik kar ve deniz buzu enlemleri (kuzey, güney)
 ivec2 pc(int id) { return ivec2(id & 63, id >> 6); }
 int dec(float a, float b) { return int(a * 255.0 + 0.5) + int(b * 255.0 + 0.5) * 256; }
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -43,6 +47,10 @@ void main() {
   if (outside) { coast = -60.0; id = 0; }
   bool isLand = id > 0 && coast > 0.0;
   vec3 col;
+  // ---------------------------------------------------------------- enlem (ters Miller) ve mevsim sınırı titreşimi
+  float myy = uMiller.x - tuv.y * (uMiller.x - uMiller.y);
+  float lat = (2.5 * atan(exp(0.8 * myy)) - 1.9634954) * 57.29578;
+  float sj = (n2(mp * 0.045) - 0.5) * 7.0 + (n2(mp * 0.011 + 23.0) - 0.5) * 6.0;
   // ---------------------------------------------------------------- deniz
   float depth = clamp(-coast / 90.0, 0.0, 1.0);
   vec2 wq = mp * 0.045;
@@ -64,21 +72,47 @@ void main() {
   float polar = smoothstep(0.02, -0.12, tuv.y) + smoothstep(0.98, 1.12, tuv.y);
   sea = mix(sea, vec3(0.62, 0.7, 0.76) * (0.85 + 0.25 * fbm(mp * 0.01)), smoothstep(0.0, 0.08, -tuv.y) * 0.85);
   sea *= 1.0 - smoothstep(1.05, 1.3, tuv.y) * 0.5;
+  { // mevsimlik deniz buzu: kışın kuzey denizleri donar, yazın çözülür
+    float lon = tuv.x * 360.0 - 180.0; float gulf = smoothstep(-40.0, -18.0, lon) * smoothstep(58.0, 30.0, lon) * 13.0;   // Golf Akıntısı: Norveç Denizi açık kalır
+    float iN = smoothstep(uIce.x + gulf - 1.3, uIce.x + gulf + 1.3, lat + sj * 0.6), iS = smoothstep(-uIce.y - 1.3, -uIce.y + 1.3, -lat + sj * 0.6);
+    float ik = max(iN, iS) * (1.0 - foam * 0.5);
+    vec3 iceC = vec3(0.8, 0.87, 0.92) * (0.86 + 0.22 * n2(mp * 0.09 + 5.0));
+    float crack = smoothstep(0.47, 0.5, n2(mp * 0.23)) * smoothstep(0.53, 0.5, n2(mp * 0.23));
+    sea = mix(sea, iceC * (1.0 - crack * 0.25), ik * 0.9);
+  }
   // ---------------------------------------------------------------- kara
   vec3 terr = texture(tTerrain, tuv).rgb;
+  { // mevsimlik kar örtüsü: yükseklik karı güneye taşır; gölgelendirme korunur
+    float hgt = fld.b; float lumT = dot(terr, vec3(0.3, 0.55, 0.15));
+    float sN = smoothstep(uSnow.x - 2.2, uSnow.x + 2.2, lat + sj + hgt * 30.0);
+    float sS = smoothstep(-uSnow.y - 2.2, -uSnow.y + 2.2, -lat + sj + hgt * 30.0);
+    vec3 snowC = vec3(0.9, 0.93, 0.97) * (0.68 + 0.6 * lumT);
+    terr = mix(terr, snowC, max(sN, sS) * 0.82);
+  }
   vec3 land = terr;
   if (id > 0) {
     vec4 cur = texelFetch(tCol, pc(id), 0), prev = texelFetch(tPrev, pc(id), 0);
     vec4 an = texelFetch(tAnim, pc(id), 0);
     vec4 own = texelFetch(tOwn, pc(id), 0);
     int flags = int(own.b * 255.0 + 0.5);
-    vec3 pcol = cur.rgb; float ring = 0.0;
+    vec3 pcol = cur.rgb; float ring = 0.0; vec3 ringCol = vec3(0.0);
     float age = t - an.a;
-    if (age < 3.0 && age > -0.01) { // fetih: merkezden yayılan renk dalgası
-      float d = distance(mp, an.xy) / max(an.z, 4.0);
-      float front = age * 1.25 - d;
-      pcol = mix(prev.rgb, cur.rgb, smoothstep(0.0, 0.08, front));
-      ring = exp(-pow(front * 9.0, 2.0)) * (1.0 - age / 3.0);
+    if (age < 3.0) {
+      vec2 dd = mp - an.xy; dd.x -= uSize.x * floor(dd.x / uSize.x + 0.5);   // dikiş çizgisini aşan uzaklık
+      float d = length(dd) / max(an.z, 4.0);
+      float front = age * 1.25 - d; float on = step(0.0, age);
+      if (prev.a > 0.5) { // fetih: yeni sahibin rengi merkezden yayılır (başlamadan önce önceki renk)
+        pcol = mix(prev.rgb, cur.rgb, smoothstep(0.0, 0.08, front));
+        ring = exp(-pow(front * 9.0, 2.0)) * (1.0 - age / 3.0) * on;
+        ringCol = cur.rgb * 1.2 + vec3(0.6, 0.54, 0.36);
+      } else { // diplomasi dalgası: ülkenin üzerinden geçen ışık bandı ve sönen iz
+        float band = exp(-pow(front * 5.0, 2.0)) * on;
+        float trail = smoothstep(0.0, 0.05, front) * exp(-max(front, 0.0) * 2.2) * on;
+        float fade = 1.0 - age / 3.0;
+        ring = (band + trail * 0.3) * fade;
+        pcol = mix(cur.rgb, prev.rgb, min(1.0, band * 0.75 + trail * 0.3) * fade);
+        ringCol = prev.rgb * 0.85 + 0.12;
+      }
     }
     float lum = dot(terr, vec3(0.3, 0.55, 0.15));
     vec3 tinted = pcol * (0.42 + 0.85 * lum);
@@ -86,7 +120,7 @@ void main() {
     if ((flags & 2) != 0) land *= 1.13;                                    // üzerine gelinen
     if ((flags & 4) != 0) land = mix(land, vec3(0.35, 0.85, 0.45), 0.22 + 0.08 * sin(t * 5.0));   // hareket hedefi
     if ((flags & 8) != 0) land = mix(land, vec3(0.95, 0.25, 0.18), 0.25 + 0.1 * sin(t * 6.0));   // saldırı hedefi
-    land += cur.rgb * ring * 1.2 + vec3(1.0, 0.9, 0.6) * ring * 0.6;
+    land += ringCol * ring;
     // ---- sınırlar
     float bd = max(fld.r * 255.0 / 20.0 - 0.5, 0.0);                  // eyalet sınırı çizgisine uzaklık (harita pikseli)
     if (ac > 0) {
@@ -159,6 +193,7 @@ export class MapView {
     this.uniforms = {
       tId: { value: this.tId }, tField: { value: this.tField }, tTerrain: { value: this.tTerrain }, tCol: { value: this.tCol }, tPrev: { value: this.tPrev }, tAnim: { value: this.tAnim }, tOwn: { value: this.tOwn }, tNoise: { value: this.tNoise },
       uSize: { value: new THREE.Vector2(W, H) }, uTime: { value: 0 }, uPx: { value: 1 }, uPolitical: { value: 0.62 }, uClouds: { value: 0 }, uPlayer: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) }, uCamPos: { value: new THREE.Vector3() },
+      uMiller: { value: new THREE.Vector2(MILLER_Y0, MILLER_Y1) }, uSnow: { value: new THREE.Vector2(45, -68) }, uIce: { value: new THREE.Vector2(63, -68) },
     };
     this.material = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, vertexShader: VERT, fragmentShader: FRAG, uniforms: this.uniforms });
     const EXT = 0.6; const geo = new THREE.PlaneGeometry(W, H * (1 + 2 * EXT), 1, 1); geo.rotateX(-Math.PI / 2); { const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) * (1 + 2 * EXT) - EXT); }
@@ -178,8 +213,15 @@ export class MapView {
   setFlags(p, flags) { this.ownData[p * 4 + 2] = flags; }
   // fetih animasyonu: önceki rengi sakla, dalgayı başlat
   capture(p, prevRgb, startDelay = 0) {
-    const o = p * 4; this.prevData[o] = prevRgb[0]; this.prevData[o + 1] = prevRgb[1]; this.prevData[o + 2] = prevRgb[2]; this.prevData[o + 3] = 255;
+    const o = p * 4, pr = this.world.provinces[p]; this.prevData[o] = prevRgb[0]; this.prevData[o + 1] = prevRgb[1]; this.prevData[o + 2] = prevRgb[2]; this.prevData[o + 3] = 255;
+    this.animData[o] = pr.cx; this.animData[o + 1] = pr.cy; this.animData[o + 2] = Math.max(6, Math.sqrt(pr.area) * 0.9);
     this.animData[o + 3] = this.uniforms.uTime.value + startDelay; this.tAnim.needsUpdate = true; this.tPrev.needsUpdate = true;
+  }
+  // diplomasi dalgası: ortak bir merkezden (ox, oy) ülkenin üzerinden geçen renkli ışık bandı
+  wave(p, rgbCol, ox, oy, radius, startDelay = 0) {
+    const o = p * 4; this.prevData[o] = rgbCol[0]; this.prevData[o + 1] = rgbCol[1]; this.prevData[o + 2] = rgbCol[2]; this.prevData[o + 3] = 0;
+    this.animData[o] = ox; this.animData[o + 1] = oy; this.animData[o + 2] = radius; this.animData[o + 3] = this.uniforms.uTime.value + startDelay;
+    this.tAnim.needsUpdate = true; this.tPrev.needsUpdate = true;
   }
   commit() { this.tCol.needsUpdate = true; this.tOwn.needsUpdate = true; }
 
