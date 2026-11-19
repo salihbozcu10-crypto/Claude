@@ -120,7 +120,7 @@ function flashlight() {
   const spot = new THREE.SpotLight(0xffeccc, 40, 14, 0.42, 0.55, 1.4);
   spot.position.set(0, 0, 0.14); spot.target.position.set(0, 0, 3); spot.castShadow = true; spot.shadow.mapSize.set(1024, 1024); spot.shadow.bias = -0.0006; spot.shadow.normalBias = 0.03; spot.shadow.camera.near = 0.1;
   group.add(spot, spot.target);
-  const beam = lightShaft(5, 0.03, 1.9, 0xffe8c8, 0.16); beam.rotation.x = -Math.PI / 2; beam.position.z = 0.14; group.add(beam);
+  const beam = lightShaft(4, 0.03, 1.15, 0xffe8c8, 0.08); beam.rotation.x = -Math.PI / 2; beam.position.z = 0.14; group.add(beam);
   const glare = new THREE.Mesh(new THREE.CircleGeometry(0.09, 24), new THREE.MeshBasicMaterial({ map: canvasTexture(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,240,210,1)'); gr.addColorStop(0.3, 'rgba(255,230,200,0.35)'); gr.addColorStop(1, 'rgba(255,230,200,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   glare.position.z = 0.145; group.add(glare);
   const st = {};
@@ -129,7 +129,7 @@ function flashlight() {
   function update(t) {
     let k = st.on * st.intensity;
     if (st.flicker > 0) k *= 1 - st.flicker * (fbm1(t * 25) > 0.1 ? 0.8 : 0);
-    spot.intensity = 40 * k; lensMat.color.setRGB(1, 0.95, 0.85).multiplyScalar(6 * k); beam.material.uniforms.intensity.value = 0.16 * k; glare.visible = k > 0.05; beam.visible = k > 0.02;
+    spot.intensity = 40 * k; lensMat.color.setRGB(1, 0.95, 0.85).multiplyScalar(6 * k); beam.material.uniforms.intensity.value = 0.08 * k; glare.visible = k > 0.05; beam.visible = k > 0.02;
     beam.userData.setTime(t);
   }
   return Object.assign(st, { group, update, reset, keepParent: false, spot });

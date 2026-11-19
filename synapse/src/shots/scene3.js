@@ -78,7 +78,7 @@ function atlasCable(ctx, st) {
 
 export const scene3 = [
   { id: 's3_01', scene: 3, set: SET, dur: 3.0, desc: 'KAPIYA DARBE! Alarm başlar',
-    cues: [S('door_bang_1', BANGS[0], 0), A('alarm_klaxon', 0.4, 46.0, -10), A('drone_buzz', 0.2, 46.2, -12), M('mus_s3_climax', 0.6, -3)],
+    cues: [S('door_bang_1', BANGS[0], 0), A('alarm_klaxon', 0.4, 46.0, -10), A('drone_buzz', 0.2, 46.2, -12), M('mus_s3_climax', 0.6, -3, { dur: 45.8 })],
     update(ctx, lt) {
       const st = lt; stage(ctx, st); const { atlas, defne } = ctx.chars;
       atlas.lookAt(V(4.9, 1.4, 0.5), 0.8, 1); defne.lookAt(V(4.9, 1.4, 0.5), 0.4, 1);

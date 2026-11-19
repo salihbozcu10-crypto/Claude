@@ -54,7 +54,7 @@ export const scene1 = [
     cues: [A('amb_rain_muffled', 0, 52, -6), A('amb_drips', 0, 52, -4), A('amb_room_hum', 0, 52, -10), M('mus_s1_dark', 0, -2), S('flashlight_click', 1.2, -6), S('footsteps_wet', 1.6, -8, { dur: 10 })],
     update(ctx, lt) {
       const st = lt; stage(ctx, st);
-      cam(ctx, lt, { pos: vtrack([[0, [3.6, 2.9, -3.4]], [6, [3.1, 2.4, -2.6]]], 'inOutSine'), target: vtrack([[0, [0, 0.8, 2.6]], [6, [0, 1.0, 2.2]]], 'inOutSine'), fov: 40, shake: 0.3 });
+      cam(ctx, lt, { pos: vtrack([[0, [-0.9, 2.0, -3.4]], [6, [-0.75, 1.8, -2.9]]], 'inOutSine'), target: vtrack([[0, [0.2, 1.0, 3.0]], [6, [0.15, 1.1, 2.6]]], 'inOutSine'), fov: 44, shake: 0.3 });
       ctx.post.fade = fadeIn(lt, 1.6); ctx.post.letterbox = 1;
     } },
   // 2) Koridorda takip: ekip yaklaşıyor; Defne mırıldanmaya başlar

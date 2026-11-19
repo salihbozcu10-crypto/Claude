@@ -5,3 +5,6 @@ frames/
 .cache/
 out/
 *.log
+audio/sfx/
+audio/music/
+audio/__pycache__/
