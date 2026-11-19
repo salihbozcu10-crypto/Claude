@@ -84,7 +84,7 @@ export function buildCharacter(specIn) {
     skin: skinMaterial(0xffffff, { map: skinTex, sssColor: spec.sss, normalMap: skinPoreNormal(), normalScale: 0.08 }),
     skinPlain: skinMaterial(spec.skin, { sssColor: spec.sss }),
     lid: skinMaterial(F.lidColor ?? spec.skin, { sssColor: spec.sss }),
-    brow: hairMaterial(F.brow, { roughness: 0.6, anisotropy: 0 }),
+    brow: hairMaterial(F.brow, { roughness: 0.7, anisotropy: 0 }),
     lip: skinMaterial(F.lip, { roughness: 0.38, clearcoat: 0.25, sssColor: 0xff3020 }),
     mouthIn: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
     teeth: charMaterial(0xf2ece0, { roughness: 0.3, sheen: 0, clearcoat: 0.4, rim: 0.2 }),
@@ -93,6 +93,8 @@ export function buildCharacter(specIn) {
     lash: new THREE.MeshStandardMaterial({ color: F.lashColor, roughness: 0.7 }),
   };
   mats.lid.side = THREE.DoubleSide;
+  mats.brow.map = browTexture(); mats.brow.transparent = true; mats.brow.depthWrite = false;
+  mats.brow.polygonOffset = true; mats.brow.polygonOffsetFactor = -2; mats.brow.polygonOffsetUnits = -2;
   for (const m of [mats.teeth, mats.tongue]) { m.polygonOffset = true; m.polygonOffsetFactor = -4; m.polygonOffsetUnits = -4; }
 
   // ---------- kafa yüzeyi ----------
@@ -171,7 +173,7 @@ export function buildCharacter(specIn) {
     const corneaMat = new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.04, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, specularIntensity: 1, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, envMapIntensity: 2.5 });
     const cornea = new THREE.Mesh(cg, corneaMat); ball.add(cornea);
     // parıltı (catchlight) — göz yuvasına sabit
-    const cl = new THREE.Mesh(new THREE.CircleGeometry(F.eyeR * 0.17, 20), glowMaterial(0xffffff, 1.6, { transparent: true, opacity: 0.9 }));
+    const cl = new THREE.Mesh(new THREE.CircleGeometry(F.eyeR * 0.21, 24), glowMaterial(0xffffff, 1.8, { transparent: true, opacity: 0.92 }));
     cl.scale.set(1, 0.8, 1);
     socket.add(cl);
     // kapaklar
@@ -257,7 +259,7 @@ export function buildCharacter(specIn) {
 
   // ---------- kıyafet & saç (karaktere özel) ----------
   const ctx = {
-    THREE, spec, bones, mats, headF, facePoint, root, hands,
+    THREE, spec, bones, mats, headF, facePoint, root, hands, eyes,
     geo: { sphereGrid, limb, lathe, lock, merge, roundedBox, dirFromUV, uvFromDir, helixPoints },
     materials: { skinMaterial, charMaterial, hairMaterial, glowMaterial, canvasTexture },
     add(boneName, mesh) { bones[boneName].add(mesh); return mesh; },
@@ -277,23 +279,27 @@ export function buildCharacter(specIn) {
     pose: neutralPose(), face: neutralFace(),
     gaze: null, gazeW: { head: 1, eyes: 1 }, autoBlink: true, idle: 1, breath: 1,
     speech: null, // { env:[], shape:[], rate, t0 } — update(t) okuyup ağzı oynatır
+    ik: { l: null, r: null, lW: 1, rW: 1 }, // kol IK hedefleri (dünya koordinatı)
     catchlight: { dir: V(-0.32, 0.38, 0.87), on: 1 },
     extras: ctx.extras,
   };
 
-  ch.reset = () => { ch.pose = neutralPose(); ch.face = neutralFace(); ch.gaze = null; ch.gazeW = { head: 1, eyes: 1 }; ch.speech = null; ch.root.visible = true; ch.idle = 1; ch.autoBlink = true; ch.catchlight.on = 1; ch.root.position.set(0, 0, 0); ch.root.rotation.set(0, 0, 0); for (const k in ch.extras) ch.extras[k].reset && ch.extras[k].reset(); };
-  ch.place = (x, z, heading = 0, y = 0) => { root.position.set(x, y, z); root.rotation.set(0, heading, 0); };
-  ch.setPose = (name, w = 1) => { const p = typeof name === 'string' ? POSES[name] : name; if (!p) { console.warn('poz yok:', name); return; } ch.pose = blendPose(ch.pose, p, w, false); };
-  ch.mixPose = (p, w = 1) => { ch.pose = blendPose(ch.pose, p, w, true); }; // eklemeli
+  ch.reset = () => { ch._synced = false; ch.ik = { l: null, r: null, lW: 1, rW: 1 }; ch.pose = neutralPose(); ch.face = neutralFace(); ch.gaze = null; ch.gazeW = { head: 1, eyes: 1 }; ch.speech = null; ch.root.visible = true; ch.idle = 1; ch.autoBlink = true; ch.catchlight.on = 1; ch.root.position.set(0, 0, 0); ch.root.rotation.set(0, 0, 0); for (const k in ch.extras) ch.extras[k].reset && ch.extras[k].reset(); };
+  ch.place = (x, z, heading = 0, y = 0) => { root.position.set(x, y, z); root.rotation.set(0, heading, 0); ch._synced = false; };
+  ch.setPose = (name, w = 1) => { ch._synced = false; const p = typeof name === 'string' ? POSES[name] : name; if (!p) { console.warn('poz yok:', name); return; } ch.pose = blendPose(ch.pose, p, w, false); };
+  ch.mixPose = (p, w = 1) => { ch._synced = false; ch.pose = blendPose(ch.pose, p, w, true); }; // eklemeli
   ch.lookAt = (target, head = 1, eyesW = 1) => { ch.gaze = target ? target.clone() : null; ch.gazeW = { head, eyes: eyesW }; };
   ch.expr = (name, w = 1) => { const e = EXPR[name]; if (!e) return console.warn('ifade yok:', name); for (const k in e) ch.face[k] += e[k] * w; };
-  ch.walk = (phase, amount = 1, opts = {}) => applyWalk(ch.pose, phase, amount, opts);
+  ch.walk = (phase, amount = 1, opts = {}) => { ch._synced = false; applyWalk(ch.pose, phase, amount, opts); };
   ch.say = (lip, t0) => { ch.speech = lip ? { ...lip, t0 } : null; };
-  ch.headWorld = (out = V()) => bones.face.getWorldPosition(out);
-  ch.eyeWorld = (out = V()) => { const a = eyes.l.socket.getWorldPosition(V()); const b = eyes.r.socket.getWorldPosition(V()); return out.copy(a).add(b).multiplyScalar(0.5); };
-  ch.boneWorld = (name, out = V()) => bones[name].getWorldPosition(out);
+  const sync = () => { if (!ch._synced) ch.update(ch.lastT || 0); };
+  ch.sync = sync;
+  ch.headWorld = (out = V()) => { sync(); return bones.face.getWorldPosition(out); };
+  ch.eyeWorld = (out = V()) => { sync(); const a = eyes.l.socket.getWorldPosition(V()); const b = eyes.r.socket.getWorldPosition(V()); return out.copy(a).add(b).multiplyScalar(0.5); };
+  ch.boneWorld = (name, out = V()) => { sync(); return bones[name].getWorldPosition(out); };
 
   ch.update = (t) => {
+    ch.lastT = t; ch._synced = true;
     const P = ch.pose, Fc = ch.face;
     // --- nefes & boşta hareket ---
     const br = Math.sin(t * 2 * Math.PI / 4.2 + spec.name.length) * ch.breath;
@@ -323,6 +329,7 @@ export function buildCharacter(specIn) {
     let nx = P.neck[0], ny = P.neck[1], nz = P.neck[2], hx = P.head[0] + micro(1), hy = P.head[1] + micro(2), hz = P.head[2] + micro(3) * 0.5;
     setRot(bones.neck, nx, ny, nz); setRot(bones.head, hx, hy, hz);
     root.updateMatrixWorld(true);
+    for (const s of ['l', 'r']) if (ch.ik[s]) solveArmIK(bones, s, ch.ik[s], ch.ik[s + 'W'] ?? 1);
     if (ch.gaze && ch.gazeW.head > 0) {
       // boyun tabanı çerçevesinde hedef yönü
       const inv = new THREE.Matrix4().copy(bones.chest.matrixWorld).invert();
@@ -401,23 +408,40 @@ export function buildCharacter(specIn) {
 
   // ---- kaş geometrisi ----
   function buildBrows(Fc) {
+    const NB = 16, NA = 6;
+    const hMax = Math.min(F.browThick, 0.013) * 1.15;
     for (const s of ['l', 'r']) {
       const sx = s === 'l' ? 1 : -1;
-      const pts = [], rad = [];
-      const n = 7;
       const up = Fc.browUp + (s === 'l' ? Fc.browL : Fc.browR);
-      for (let i = 0; i < n; i++) {
-        const k = i / (n - 1); // 0 iç → 1 dış
-        const u = (0.016 + k * 0.064 * F.browLen) * sx;
-        let v = F.eyeY + F.eyeR + 0.021 + F.browY + Math.sin(k * Math.PI) * 0.0085 * F.browArch - k * 0.004 + F.browTilt * (k - 0.5) * 0.01;
-        v += up * 0.011 * (0.8 + 0.2 * k);
-        v += -Fc.browIn * 0.0095 * (1 - k) ** 1.4 + Fc.browSad * (0.011 * (1 - k) ** 1.5 - 0.004 * k);
-        const uu = u - sx * Fc.browIn * 0.004 * (1 - k);
-        pts.push(facePoint(uu, v, 0.0032));
-        rad.push(F.browThick * (1 - k * 0.55) * (k < 0.08 ? 0.75 : 1));
+      const cu = [], cv = [], hh = [];
+      for (let i = 0; i <= NB; i++) {
+        const k = i / NB; // 0 iç → 1 dış
+        let u = 0.0135 + k * 0.06 * F.browLen;
+        let v = F.eyeY + F.eyeR + 0.0175 + F.browY;
+        v += 0.0072 * F.browArch * Math.sin(Math.PI * Math.pow(k, 0.8)) * (1 - 0.35 * Fc.browIn) - 0.0035 * k * k + F.browTilt * (k - 0.5) * 0.01;
+        v += up * 0.0105 * (0.8 + 0.2 * k) + Math.max(0, up) * 0.003 * Math.sin(Math.PI * k);
+        v += -Fc.browIn * 0.0105 * Math.pow(1 - k, 1.3) + Fc.browIn * 0.002 * k;
+        v += Fc.browSad * (0.012 * Math.pow(1 - k, 1.5) - 0.004 * k);
+        u -= (Fc.browIn * 0.005 + Fc.browSad * 0.002) * Math.pow(1 - k, 1.5);
+        cu.push(u * sx); cv.push(v);
+        const prof = k < 0.14 ? 0.62 + 0.38 * smoothstep(0, 0.14, k) : 1 - 0.75 * Math.pow((k - 0.14) / 0.86, 1.35);
+        hh.push(hMax * prof * (1 + 0.12 * Math.max(0, Fc.browIn)));
       }
-      browMeshes[s].geometry.dispose();
-      browMeshes[s].geometry = tubeVar(pts, rad, 6, 18, 1.15);
+      const pos = [], uv = [], idx = [];
+      for (let i = 0; i <= NB; i++) {
+        const i0 = Math.max(0, i - 1), i1 = Math.min(NB, i + 1);
+        let tu = cu[i1] - cu[i0], tv = cv[i1] - cv[i0]; const tl = Math.hypot(tu, tv); tu /= tl; tv /= tl;
+        let nu = -tv, nv = tu; if (nv < 0) { nu = -nu; nv = -nv; }
+        for (let j = 0; j <= NA; j++) {
+          const a = (j / NA) * 2 - 1;
+          const p = facePoint(cu[i] + nu * a * hh[i] * 0.5, cv[i] + nv * a * hh[i] * 0.5, 0.0008 + 0.0012 * Math.sqrt(Math.max(0, 1 - a * a)) * (hh[i] / hMax));
+          pos.push(p.x, p.y, p.z); uv.push(s === 'l' ? i / NB : i / NB, j / NA);
+        }
+      }
+      for (let i = 0; i < NB; i++) for (let j = 0; j < NA; j++) { const a = i * (NA + 1) + j, b = a + NA + 1; if (sx > 0) idx.push(a, b, a + 1, a + 1, b, b + 1); else idx.push(a, a + 1, b, a + 1, b + 1, b); }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+      browMeshes[s].geometry.dispose(); browMeshes[s].geometry = g;
     }
   }
 
@@ -492,6 +516,29 @@ export function buildCharacter(specIn) {
 }
 
 function setRot(o, x, y, z) { o.rotation.set(x, y, z); }
+
+// Kol IK: omuz [öne, yana, burma] + dirsek bükme parametrelerinde koordinat inişi.
+const _tip = new THREE.Vector3();
+function solveArmIK(bones, s, target, w = 1) {
+  const sx = s === 'l' ? 1 : -1; const S = bones[s + 'Shoulder'], E = bones[s + 'Elbow'], Wr = bones[s + 'Wrist'];
+  const r0 = S.rotation.clone(), e0 = E.rotation.x;
+  let P = [-r0.x, sx * r0.z, sx * r0.y, -e0]; // fwd, out(+0.06 dahil), twist, elbow
+  const apply = (q) => { S.rotation.set(-q[0], sx * q[2], sx * q[1]); E.rotation.set(-q[3], E.rotation.y, 0); S.updateMatrixWorld(true); };
+  const cost = (q) => { apply(q); _tip.set(0, -0.075, 0.012).applyMatrix4(Wr.matrixWorld); return _tip.distanceToSquared(target) + 0.0004 * (q[2] * q[2]); };
+  let best = cost(P);
+  for (const step of [0.3, 0.15, 0.07, 0.03, 0.012]) {
+    for (let pass = 0; pass < 3; pass++) {
+      let improved = false;
+      for (let i = 0; i < 4; i++) for (const d of [step, -step]) {
+        const q = P.slice(); q[i] += d; if (i === 3) q[3] = Math.min(2.6, Math.max(0.02, q[3]));
+        const c = cost(q); if (c < best) { best = c; P = q; improved = true; }
+      }
+      if (!improved) break;
+    }
+  }
+  const q0 = [-r0.x, sx * r0.z, sx * r0.y, -e0];
+  apply(q0.map((v, i) => v + (P[i] - v) * w));
+}
 
 function setGeo(mesh, pos, idx, col) {
   const g = new THREE.BufferGeometry();
@@ -631,9 +678,11 @@ export function defaultOutfit(ctx, o = {}) {
   const sole = materials.charMaterial(o.sole ?? 0xe8e4dc, { roughness: 0.7 });
   const parts = {};
   // gövde (göğüs) — chest kemiğine
-  parts.torso = new THREE.Mesh(geo.lathe([
+  const torsoProfile = o.torsoProfile || [
     [B.waistR * 0.98, -0.2], [B.waistR, -0.15], [B.waistR * 1.06, -0.06], [B.chestR, 0.04], [B.chestR * 1.03, 0.1], [B.chestR * 0.97, 0.15], [B.chestR * 0.8, 0.185], [B.neckR * 1.5, 0.205], [B.neckR * 1.15, 0.215],
-  ], 48, 1.22, B.chestZ), top);
+  ];
+  parts.torsoProfile = torsoProfile; parts.torsoSX = o.torsoSX ?? 1.22; parts.torsoSZ = B.chestZ;
+  parts.torso = new THREE.Mesh(geo.lathe(torsoProfile, 48, parts.torsoSX, B.chestZ), top);
   bones.chest.add(parts.torso);
   // pelvis — hips kemiğine
   parts.pelvis = new THREE.Mesh(geo.lathe([
@@ -646,7 +695,7 @@ export function defaultOutfit(ctx, o = {}) {
     const sleeveMat = o.sleeve === 'none' ? mats.skinPlain : top;
     const ua = new THREE.Mesh(geo.limb(0.255, [[0, armR * 1.15], [0.5, armR * 1.02], [1, armR * 0.88]], 24, 14), sleeveMat);
     bones[s + 'Shoulder'].add(ua);
-    const sb = new THREE.Mesh(new THREE.SphereGeometry(armR * 1.08, 24, 16), sleeveMat); sb.position.set(s === 'l' ? -0.008 : 0.008, -0.004, 0); bones[s + 'Shoulder'].add(sb);
+    const sb = new THREE.Mesh(new THREE.SphereGeometry(armR * 1.04, 24, 16), sleeveMat); sb.scale.set(0.85, 0.9, 1); sb.position.set(s === 'l' ? -0.014 : 0.014, -0.01, 0); bones[s + 'Shoulder'].add(sb);
     const faMat = o.sleeve === 'long' || !o.sleeve ? top : mats.skinPlain;
     const fa = new THREE.Mesh(geo.limb(0.22, [[0, armR * 0.86], [0.6, armR * 0.78], [1, armR * 0.62]], 24, 14), faMat);
     bones[s + 'Elbow'].add(fa);
@@ -663,6 +712,7 @@ export function defaultOutfit(ctx, o = {}) {
     bones[s + 'Knee'].add(sh);
     const kb = new THREE.Mesh(new THREE.SphereGeometry(legR * 0.8, 20, 14), bottom); bones[s + 'Knee'].add(kb);
     // ayakkabı
+    if (o.footwear) { const f = o.footwear(s); bones[s + 'Ankle'].add(f); parts[s + 'Shoe'] = f; parts[s + 'Thigh'] = th; parts[s + 'Shin'] = sh; continue; }
     const sg = geo.roundedBox(0.1, 0.075, 0.25, 0.035, 4);
     const sm = new THREE.Mesh(sg, shoe); sm.position.set(0, -0.045, 0.045); bones[s + 'Ankle'].add(sm);
     const so = new THREE.Mesh(geo.roundedBox(0.104, 0.022, 0.258, 0.01, 3), sole); so.position.set(0, -0.075, 0.045); bones[s + 'Ankle'].add(so);
@@ -688,6 +738,7 @@ function paintSkin(spec) {
     const blushC = new THREE.Color(0xe0605a), stub = new THREE.Color(F.stubbleColor);
     const cheekL = V(0.55, -0.32, 0.77).normalize(), cheekR = V(-0.55, -0.32, 0.77).normalize();
     const noseT = V(0, -0.25, 0.97).normalize();
+    const ueL = V(F.eyeX / spec.head.rx * 0.95, (F.eyeY - F.eyeR * 1.25) / spec.head.ry, 0.86).normalize(), ueR = V(-ueL.x, ueL.y, ueL.z);
     for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
       dirFromUV(x / W, y / Hh, d);
       const c = base.clone();
@@ -695,6 +746,10 @@ function paintSkin(spec) {
       c.offsetHSL(0, 0, n);
       const bl = F.blush * (Math.exp(-d.distanceToSquared(cheekL) / 0.05) + Math.exp(-d.distanceToSquared(cheekR) / 0.05) + 0.5 * Math.exp(-d.distanceToSquared(noseT) / 0.02));
       c.lerp(blushC, clamp(bl * 0.32));
+      if (F.underEye) {
+        const ue = Math.exp(-d.distanceToSquared(ueL) / 0.006) + Math.exp(-d.distanceToSquared(ueR) / 0.006);
+        c.lerp(new THREE.Color(0x6a4040), clamp(ue * F.underEye * 0.35));
+      }
       if (F.stubble > 0) {
         const jaw = smoothstep(-0.05, -0.45, d.y) * smoothstep(-0.2, 0.4, d.z) * (1 - Math.exp(-((d.x / 0.08) ** 2) - (((d.y + 0.3) / 0.12) ** 2)) * 0.6);
         const lipArea = Math.exp(-(((d.y + 0.43) / 0.07) ** 2)) * Math.exp(-((d.x / 0.3) ** 2)) * smoothstep(0.6, 0.9, d.z);
@@ -716,6 +771,25 @@ function paintSkin(spec) {
     }
     g.putImageData(img, 0, 0);
   });
+}
+
+function browTexture() {
+  const W = 256, Hh = 64; const R = rng(4242);
+  return canvasTexture(W, Hh, (g) => {
+    g.clearRect(0, 0, W, Hh);
+    const grd = g.createLinearGradient(0, 0, 0, Hh);
+    grd.addColorStop(0, 'rgba(255,255,255,0)'); grd.addColorStop(0.22, 'rgba(255,255,255,0.8)'); grd.addColorStop(0.5, 'rgba(255,255,255,0.97)'); grd.addColorStop(0.78, 'rgba(255,255,255,0.8)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, W, Hh);
+    g.lineCap = 'round';
+    for (let i = 0; i < 520; i++) {
+      const x = R() * W, y = Hh * (0.12 + R() * 0.76);
+      const k = x / W; const ang = -Math.PI / 2 + (0.35 + k * 0.95) + (R() - 0.5) * 0.3;
+      const len = 6 + R() * 10; const sh = 0.55 + R() * 0.45;
+      g.strokeStyle = `rgba(${Math.round(255 * sh)},${Math.round(255 * sh)},${Math.round(255 * sh)},${0.5 + R() * 0.5})`;
+      g.lineWidth = 1 + R() * 1.4;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(ang) * len, y - Math.sin(ang) * len * 0.6); g.stroke();
+    }
+  }, { srgb: true });
 }
 
 function paintIris(F) {

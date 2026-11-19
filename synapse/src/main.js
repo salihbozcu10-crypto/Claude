@@ -16,7 +16,7 @@ import { buildEpisode } from './shots/episode.js';
 import { studioLights } from './engine/studio.js';
 import { EXPR } from './characters/rig.js';
 
-const q = new URLSearchParams(location.search);
+let q = new URLSearchParams(location.search);
 const W = +(q.get('w') || 1920), H = +(q.get('h') || 1080);
 const FPS = 24;
 const canvas = document.getElementById('c');
@@ -31,7 +31,11 @@ for (const k in sets) { scene.add(sets[k].group); sets[k].group.visible = false;
 const props = buildProps(stage);
 for (const k in props) { if (props[k].group && !props[k].group.parent) scene.add(props[k].group); if (props[k].group) props[k].group.visible = false; }
 
-const ctx = { stage, scene, camera, post: stage.post, chars: cast, sets, props, RIM, THREE, t: 0 };
+// çekim başına sinematik ışıklar (yüzler için anahtar + dolgu + kenar); her karede sıfırlanır
+const keyLight = new THREE.SpotLight(0xffe6d0, 0, 8, 0.45, 0.8, 1.5); keyLight.castShadow = false; scene.add(keyLight, keyLight.target);
+const fillLight = new THREE.PointLight(0x80a8ff, 0, 5, 1.6); scene.add(fillLight);
+const rimLight = new THREE.SpotLight(0x60d8ff, 0, 8, 0.5, 0.8, 1.5); scene.add(rimLight, rimLight.target);
+const ctx = { stage, scene, camera, post: stage.post, chars: cast, sets, props, RIM, THREE, t: 0, keyLight, fillLight, rimLight };
 
 // her kare başında dünya sıfırlanır; çekim her şeyi baştan kurar
 const RIM0 = { color: RIM.color.value.clone(), strength: RIM.strength.value, power: RIM.power.value };
@@ -42,17 +46,23 @@ function resetWorld() {
   for (const k in sets) { sets[k].group.visible = false; sets[k].reset && sets[k].reset(); }
   for (const k in props) { const p = props[k]; if (p.reset) p.reset(); if (p.group) { p.group.visible = false; if (p.group.parent !== scene && !p.keepParent) scene.add(p.group); } }
   camera.fov = 35; camera.near = 0.05; camera.far = 200; camera.up.set(0, 1, 0); camera.rotation.set(0, 0, 0);
-  scene.fog = null; scene.background = new THREE.Color(0x05070c); scene.environmentIntensity = 0.25;
+  scene.fog = null; scene.background = new THREE.Color(0x05070c);
   studio.group.visible = false;
+  keyLight.intensity = 0; fillLight.intensity = 0; rimLight.intensity = 0;
+}
+// şiddeti 0 olan ışıkları gizle: shader ışık döngüsünden çıkar (yazılımsal GPU'da büyük kazanç)
+function cullLights() {
+  scene.traverse((o) => { if (o.isLight && !o.isHemisphereLight && !o.isAmbientLight) o.visible = o.intensity > 1e-3; });
 }
 const studio = studioLights(scene);
 
-const mode = q.get('mode') || 'episode';
+let mode = q.get('mode') || 'episode';
 let timeline = null;
 if (mode === 'episode' || mode === 'shot') timeline = createTimeline(buildEpisode(ctx));
 
 function finishFrame(t) {
   for (const k in cast) if (cast[k].root.visible) cast[k].update(t);
+  cullLights();
   camera.updateProjectionMatrix();
   stage.render(t);
 }
@@ -71,7 +81,7 @@ function renderEpisodeTime(t) {
 // ---- önizleme modları ----
 function renderCharPreview(t) {
   resetWorld();
-  studio.group.visible = true; scene.background = new THREE.Color(0x1a2a3c); scene.environmentIntensity = 0.5;
+  studio.group.visible = true; scene.background = new THREE.Color(0x1a2a3c);
   const name = q.get('name') || 'atlas'; const ch = cast[name];
   ch.root.visible = true; ch.place(0, 0, +(q.get('rot') || 0));
   if (q.get('pose')) ch.setPose(q.get('pose'));
@@ -123,7 +133,7 @@ function renderSetPreview(t) {
 
 function renderPropPreview(t) {
   resetWorld();
-  studio.group.visible = true; scene.background = new THREE.Color(0x1a2230); scene.environmentIntensity = 0.5;
+  studio.group.visible = true; scene.background = new THREE.Color(0x1a2230);
   const p = props[q.get('name')];
   p.group.visible = true; p.group.position.set(0, 1, 0); p.group.rotation.set(0, +(q.get('rot') || 0.5), 0);
   if (p.preview) p.preview(t, ctx);
@@ -161,6 +171,8 @@ window.SYN = {
     return out.sort((a, b) => a.t - b.t);
   },
   shots() { return timeline ? timeline.list.map((s) => ({ id: s.id, scene: s.scene, start: s.start, dur: s.dur, desc: s.desc || '' })) : []; },
+  // önizleme sorgusunu sayfayı yeniden yüklemeden değiştir (çoklu inceleme için)
+  setQuery(str) { const keep = ['w', 'h', 'msaa', 'render']; const nq = new URLSearchParams(str); for (const k of keep) if (q.get(k) && !nq.get(k)) nq.set(k, q.get(k)); q = nq; mode = q.get('mode') || mode; },
   ready: true,
 };
 

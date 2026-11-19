@@ -1,8 +1,10 @@
-// Bölüm çekim listesi (geçici).
-import * as THREE from 'three';
+// Bölüm çekim listesi: Sahne 1 → Başlık → Sahne 2 → Sahne 3 → Sahne 4 → Bitiş
+import { scene1 } from './scene1.js';
+import { scene2 } from './scene2.js';
+import { scene3 } from './scene3.js';
+import { scene4 } from './scene4.js';
+import { titleCard, endCard } from './cards.js';
+
 export function buildEpisode(ctx) {
-  return [{ id: 'test', scene: 0, set: 'serverRoom', dur: 5, update(c, lt) {
-    const a = c.chars.atlas; a.root.visible = true; a.place(0, 0, 0);
-    c.camera.position.set(1, 1.5, 3); c.camera.lookAt(0, 1.2, 0);
-  } }];
+  return [...scene1, titleCard, ...scene2, ...scene3, ...scene4, endCard];
 }

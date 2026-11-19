@@ -8,7 +8,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 
 export const POST_DEFAULTS = {
   exposure: 1.0,
-  bloomStrength: 0.55, bloomRadius: 0.55, bloomThreshold: 0.85,
+  bloomStrength: 0.55, bloomRadius: 0.55, bloomThreshold: 1.1,
   dof: 0, dofFocus: 3, dofAperture: 0.06, dofMaxBlur: 9, // dof: 0 kapalı, 1 açık (karışım)
   vignette: 0.35, grain: 0.035, ca: 0.0015,
   lift: [0, 0, 0], gamma: [1, 1, 1], gain: [1, 1, 1],
@@ -24,7 +24,7 @@ uniform float cameraNear, cameraFar, focus, aperture, maxBlur, amount;
 uniform vec2 resolution;
 varying vec2 vUv;
 float linDepth(vec2 uv){ float d = texture2D(tDepth, uv).x; float z = d * 2.0 - 1.0; return (2.0 * cameraNear * cameraFar) / (cameraFar + cameraNear - z * (cameraFar - cameraNear)); }
-float coc(float z){ return clamp(abs(z - focus) / max(z, 0.001) * aperture * 400.0, 0.0, maxBlur); }
+float coc(float z){ return clamp(abs(z - focus) / max(z, 0.001) * aperture * 160.0, 0.0, maxBlur); }
 void main(){
   vec4 base = texture2D(tColor, vUv);
   // temizleme: NaN/sonsuz pikselleri ve aşırı parlak noktaları bastır (bloom'u korur)
@@ -118,7 +118,8 @@ export function createStage(canvas, W, H, { msaa = 4, shadows = true } = {}) {
   // Yumuşak ortam yansımaları için oda ortamı (her set kendi rengini ekler)
   const pmrem = new THREE.PMREMGenerator(renderer);
   const envRT = pmrem.fromScene(new RoomEnvironment(), 0.04);
-  scene.environment = envRT.texture;
+  // Not: ortam (IBL) haritası yazılımsal GPU'da kare başına ~%15-20 maliyetli; varsayılan kapalı
+  scene.environment = null;
   scene.environmentIntensity = 0.25;
 
   const depthTex = new THREE.DepthTexture(W, H);

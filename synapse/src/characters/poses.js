@@ -76,7 +76,7 @@ export const POSES = {
   // sağ elde el feneri, göğüs hizasında ileri
   holdFlashlight: { rShoulder: [0.95, 0.12, 0.25], rElbow: [0.75, 0], rWrist: [-0.15, 0, 0], rHand: 'grip', lShoulder: [0.2, 0.1, 0], lElbow: [0.5] },
   // iki elle şok tabancası nişanı
-  aimPistol: { spine: [0.05, 0, 0], chest: [0.02, 0.15, 0], rShoulder: [1.42, -0.08, 0.15], rElbow: [0.12, 0], rWrist: [0.05, 0, 0], rHand: 'grip', lShoulder: [1.25, -0.35, 0.45], lElbow: [0.55, 0], lWrist: [0.2, -0.2, 0], lHand: 'grip', head: [0.08, 0, 0], lKnee: 0.15, rKnee: 0.15, hips: { y: -0.015 } },
+  aimPistol: { spine: [0.05, 0, 0], chest: [0.02, 0.15, 0], rShoulder: [1.55, -0.08, 0.15], rElbow: [0.12, 0], rWrist: [0.05, 0, 0], rHand: 'grip', lShoulder: [1.4, -0.38, 0.45], lElbow: [0.5, 0], lWrist: [0.2, -0.2, 0], lHand: 'grip', head: [0.02, 0, 0], lKnee: 0.15, rKnee: 0.15, hips: { y: -0.015 } },
   // tabanca aşağıda, hazır
   lowReady: { rShoulder: [0.55, 0.0, 0.2], rElbow: [0.6, 0], rHand: 'grip', lShoulder: [0.4, -0.1, 0.3], lElbow: [0.9, 0], lHand: 'gripLoose', spine: [0.05, 0, 0] },
   // iki elle tablet, göğüs önünde
@@ -100,8 +100,14 @@ export const POSES = {
   kneel: { hips: { y: -0.43, rot: [0, 0, 0] }, spine: [0.15, 0, 0], lHip: [1.45, 0.1, 0], lKnee: 1.5, lAnkle: 0.05, rHip: [-0.05, 0.06, 0], rKnee: 1.62, rAnkle: -0.75 },
   // yere oturmuş, sırtı hafif geride
   sitFloor: { hips: { y: -0.8, rot: [-0.15, 0, 0] }, spine: [0.15, 0, 0], lHip: [1.35, 0.15, 0], rHip: [1.35, 0.15, 0], lKnee: 1.0, rKnee: 0.7, lAnkle: 0.1, rAnkle: 0.1, lShoulder: [0.2, 0.25, 0], rShoulder: [0.2, 0.25, 0], lElbow: [0.3], rElbow: [0.3], lHand: 'open', rHand: 'open' },
+  // sandalyede oturma (oturak 0.48 m) — kollar ayrıca (typing) eklenir
+  sitTerminal: { hips: { y: -0.3, rot: [0, 0, 0] }, spine: [0.1, 0, 0], lHip: [1.5, 0.1, 0], rHip: [1.5, 0.1, 0], lKnee: 1.45, rKnee: 1.55, lAnkle: 0.05, rAnkle: 0.05 },
+  // yerde yan yatmış (kök döndürmesiyle birlikte)
+  lying: { spine: [0.1, 0, 0], lHip: [0.35, 0.1, 0], rHip: [0.15, 0.05, 0], lKnee: 0.6, rKnee: 0.3, lShoulder: [0.8, 0.2, 0], rShoulder: [0.3, 0.1, 0], lElbow: [0.8], rElbow: [0.4], lHand: 'relaxed', rHand: 'relaxed', head: [0.1, 0, 0] },
   // boynun sol tarafına sağ elle kablo takma
-  plugNeck: { head: [0.05, -0.35, -0.3], neck: [0, -0.1, -0.15], rShoulder: [1.05, -0.35, 0.55], rElbow: [2.05, 0], rWrist: [0.3, -0.3, 0], rHand: 'pinch', lShoulder: [0.25, 0.25, 0], lElbow: [0.6], lHand: 'fist' },
+  plugNeck: { head: [0.05, -0.3, 0.3], neck: [0, -0.1, 0.15], lShoulder: [1.4, 1.1, -0.5], lElbow: [2.4, 0], lWrist: [0.1, 0, 0], lHand: 'pinch', rShoulder: [0.25, 0.25, 0], rElbow: [0.6], rHand: 'fist' },
+  // kabloyu boyna yaklaştırırken (henüz takılmamış)
+  plugReady: { head: [0.05, -0.25, 0.22], neck: [0, -0.08, 0.1], lShoulder: [1.25, 0.9, -0.35], lElbow: [2.1, 0], lWrist: [0.1, 0, 0], lHand: 'pinch', rShoulder: [0.25, 0.25, 0], rElbow: [0.6], rHand: 'fist' },
   // acıyla kasılma
   brace: { spine: [0.18, 0, 0], chest: [0.1, 0, 0], head: [-0.25, 0, 0], lShoulder: [0.3, 0.35, 0], rShoulder: [0.3, 0.35, 0], lElbow: [1.2], rElbow: [1.2], lHand: 'claw', rHand: 'claw', lKnee: 0.25, rKnee: 0.25, hips: { y: -0.03 } },
   // koşu duruşu (walk({run:1}) ile birlikte)

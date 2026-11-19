@@ -1,0 +1,82 @@
+{
+ "L01": {
+  "who": "defne",
+  "file": "L01.wav",
+  "dur": 8.33
+ },
+ "L02": {
+  "who": "asya",
+  "file": "L02.wav",
+  "dur": 3.935
+ },
+ "L03": {
+  "who": "atlas",
+  "file": "L03.wav",
+  "dur": 3.25
+ },
+ "L04": {
+  "who": "system",
+  "file": "L04.wav",
+  "dur": 5.715
+ },
+ "L05": {
+  "who": "asya",
+  "file": "L05.wav",
+  "dur": 8.77
+ },
+ "L06": {
+  "who": "atlas",
+  "file": "L06.wav",
+  "dur": 9.3
+ },
+ "L07": {
+  "who": "defne",
+  "file": "L07.wav",
+  "dur": 5.935
+ },
+ "L08": {
+  "who": "atlas",
+  "file": "L08.wav",
+  "dur": 1.285
+ },
+ "L09": {
+  "who": "defne",
+  "file": "L09.wav",
+  "dur": 17.3
+ },
+ "L10": {
+  "who": "asya",
+  "file": "L10.wav",
+  "dur": 4.19
+ },
+ "L11": {
+  "who": "defne",
+  "file": "L11.wav",
+  "dur": 9.515
+ },
+ "L12": {
+  "who": "asya",
+  "file": "L12.wav",
+  "dur": 4.01
+ },
+ "L13": {
+  "who": "atlas",
+  "file": "L13.wav",
+  "dur": 10.317
+ },
+ "L14": {
+  "who": "asya",
+  "file": "L14.wav",
+  "dur": 2.585
+ },
+ "L15": {
+  "who": "atlas",
+  "file": "L15.wav",
+  "dur": 3.265
+ },
+ "L16": {
+  "who": "defneVO",
+  "file": "L16.wav",
+  "dur": 6.535
+ }
+}
