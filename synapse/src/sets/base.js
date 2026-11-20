@@ -229,6 +229,11 @@ export function createBase(stage) {
   const neonStrip = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.025, 0.025), glowMaterial(0xff3cc8, 2.4)); neonStrip.position.set(-2.2, 2.85, -3.93); group.add(neonStrip);
   const neonStrip2 = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 2.5), glowMaterial(0x20e0ff, 2.4)); neonStrip2.position.set(4.93, 2.95, -1.8); group.add(neonStrip2);
   const neonFill = { intensity: 0 };
+  // --- acil durum aydınlatması (şalter sonrası): ön duvarda soğuk beyaz armatür + odaya yumuşak yıkama
+  const emgMat = glowMaterial(0xdfe8ff, 0);
+  const emgBox = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.11, 0.08), envMaterial(0x30343a, { roughness: 0.6, metalness: 0.3 })); emgBox.position.set(3.0, 2.72, D / 2 - 0.05); group.add(emgBox);
+  const emgPanel = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.04, 0.012), emgMat); emgPanel.position.set(3.0, 2.68, D / 2 - 0.095); group.add(emgPanel);
+  const emgLight = new THREE.SpotLight(0xc8d8ff, 0, 10, 1.05, 0.85, 1.5); emgLight.position.set(3.0, 2.62, D / 2 - 0.25); emgLight.target.position.set(1.6, 0.3, 0.2); group.add(emgLight, emgLight.target);
 
   const dustPts = dust(400, new THREE.Box3(V(-4, 0.3, -3.5), V(4, 3, 3.5)), { color: 0xffe0c0, size: 0.01, opacity: 0.35, seed: 8 });
   group.add(dustPts);
@@ -236,7 +241,7 @@ export function createBase(stage) {
   // --- durum ---
   const state = {};
   function reset() {
-    Object.assign(state, { mode: 'normal', alarm: 0, power: 1, afterDim: 0, countdown: null, countdownFrozen: false, countdownColor: null, screens: 'code', doorBangs: [], breaker: 0, tableImpactAt: null, cableAttached: true, wallMirror: 0, droneLight: 0, glitch: 0 });
+    Object.assign(state, { mode: 'normal', alarm: 0, power: 1, afterDim: 0, countdown: null, countdownFrozen: false, countdownColor: null, screens: 'code', doorBangs: [], breaker: 0, tableImpactAt: null, cableAttached: true, wallMirror: 0, droneLight: 0, glitch: 0, emergency: 0 });
   }
   reset();
 
@@ -313,6 +318,11 @@ export function createBase(stage) {
     neonStrip2.material.color.setRGB(0.125, 0.878, 1).multiplyScalar(2.4 * pw);
     hemi.intensity = 1.5 * (pw > 0.05 ? 1 : 0.45) * (1 - al * 0.4) + after * 0.6;
     hemi.color.set(after > 0 ? 0x4a5468 : 0x3a4a6a);
+    // acil durum ışığı (sahne 4)
+    const emg = state.emergency || 0;
+    hemi.intensity += emg * 4.6;
+    emgLight.intensity = emg * 45;
+    emgMat.color.setRGB(0.87, 0.91, 1).multiplyScalar(emg * 3);
     // alarm
     const rot = t * 4.2;
     beacons.forEach(({ g, dome }, i) => { const f = 0.5 + 0.5 * Math.cos(rot + i * 2); dome.material.color.setRGB(1, 0.1, 0.06).multiplyScalar(0.3 + al * (1.5 + 3 * f)); });

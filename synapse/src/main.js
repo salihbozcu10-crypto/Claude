@@ -75,6 +75,8 @@ function renderEpisodeTime(t) {
   shot.update(ctx, lt, lt / shot.dur, t);
   if (shot.set && sets[shot.set] && sets[shot.set].update) sets[shot.set].update(t, ctx);
   for (const k in props) if (props[k].group && props[k].group.visible && props[k].update) props[k].update(t, ctx);
+  // inceleme: dbgcam=x,y,z,tx,ty,tz → kamerayı geçersiz kıl (çekimin dışarıdan görünümü)
+  if (q.get('dbgcam')) { const [x, y, z, tx, ty, tz] = q.get('dbgcam').split(',').map(Number); camera.position.set(x, y, z); camera.lookAt(tx, ty, tz); camera.fov = 50; ctx.post.dof = 0; }
   finishFrame(t);
 }
 

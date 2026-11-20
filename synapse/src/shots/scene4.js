@@ -9,8 +9,8 @@ const PHOTO_T = 13.5; // fotoğrafı bulma (sahne-4 zamanı)
 function stage(ctx, st) {
   const { atlas, asya, defne } = ctx.chars; const set = ctx.sets[SET];
   show(atlas, asya, defne);
-  Object.assign(set.state, { mode: 'after', power: 0, alarm: 0, afterDim: 1, screens: 'off', breaker: 1, cableAttached: false, doorBangs: [] });
-  grade(ctx, 'after');
+  Object.assign(set.state, { mode: 'after', power: 0, alarm: 0, afterDim: 1, screens: 'off', breaker: 1, cableAttached: false, doorBangs: [], emergency: 1 });
+  grade(ctx, 'after', { exposure: 1.4 });
   ctx.RIM.color.value.set(0x6a90c0); ctx.RIM.strength.value = 0.16;
   // soğuk loş "normal" ışık: yukarıdan yumuşak anahtar
   fillAt(ctx, V(-0.5, 2.6, 0.5), 3.5, 0x8aa0c8, 7);
@@ -39,7 +39,7 @@ export const scene4 = [
       asya.place(3.9, 0.55, -Math.PI / 2 - 0.5); asya.setPose('alert'); asya.lookAt(atlas.headWorld(V()), 0.8, 1); asya.expr('shock', 0.6);
       const B = ctx.sets[SET].anchors.breaker; defne.place(B.x + 0.15, B.z + 0.1, B.heading + 1.3); defne.setPose('alert'); defne.lookAt(atlas.headWorld(V()), 0.7, 1); defne.expr('scared', 0.7);
       cam(ctx, lt, { pos: vtrack([[0, [0.4, 1.0, 0.4]], [3.5, [0.2, 0.9, 0.0]]], 'inOutSine'), target: V(-1.3, 0.75, -2.05), fov: 40, dof: 0.6, focus: 2.3 });
-      keyAt(ctx, V(-0.4, 2.5, -0.8), V(-1.3, 0.6, -2.0), 12, 0xb8c8e8, 0.6);
+      keyAt(ctx, V(-0.4, 2.5, -0.8), V(-1.3, 0.6, -2.0), 30, 0xb8c8e8, 0.6);
       ctx.post.fade = 0.85 * (1 - smoothstep(0, 1.4, lt)); ctx.post.letterbox = 1;
     } },
   { id: 's4_02', scene: 4, set: SET, dur: 3.0, desc: 'Asya ve Defne koşarak yanına diz çöker',
@@ -55,7 +55,7 @@ export const scene4 = [
       asya.lookAt(atlas.headWorld(V()), 0.9, 1); defne.lookAt(atlas.headWorld(V()), 0.9, 1);
       asya.expr('scared', 0.9); defne.expr('scared', 0.9);
       cam(ctx, lt, { pos: V(0.3, 0.45, 0.6), target: V(-1.2, 0.55, -1.9), fov: 42, shake: 0.5 });
-      keyAt(ctx, V(-0.4, 2.5, -0.8), V(-1.3, 0.6, -2.0), 12, 0xb8c8e8, 0.6);
+      keyAt(ctx, V(-0.4, 2.5, -0.8), V(-1.3, 0.6, -2.0), 30, 0xb8c8e8, 0.6);
       ctx.post.letterbox = 1;
     } },
   { id: 's4_03', scene: 4, set: SET, dur: 3.0, desc: 'Asya: "Atlas... İyi misin? Başardın mı?"',
@@ -129,15 +129,29 @@ export const scene4 = [
     update(ctx, lt) {
       const st = 19.9 + lt; stage(ctx, st); const { defne } = ctx.chars; const P = ctx.props;
       atlasFall(ctx, 3);
-      defne.place(0.1, -0.78, 0); defne.setPose('holdPaper'); defne.expr('scared', 0.4 + 0.5 * smoothstep(4, 6.5, lt)); defne.mixPose({ lWrist: [Math.sin(ctx.t * 19) * 0.03, 0, 0], rWrist: [Math.sin(ctx.t * 17) * 0.03, 0, 0] });
+      defne.place(0.1, -0.78, 0); defne.setPose('holdPaper'); defne.expr('scared', 0.4 + 0.5 * smoothstep(4, 6.5, lt)); defne.expr('shock', 0.45 * smoothstep(5.2, 6.6, lt)); defne.mixPose({ lWrist: [Math.sin(ctx.t * 19) * 0.03, 0, 0], rWrist: [Math.sin(ctx.t * 17) * 0.03, 0, 0] });
       defne.update(ctx.t);
       const hp = defne.bones.chest.localToWorld(V(0, 0.02, 0.28)); placeProp(ctx, P.photo, hp); P.photo.group.lookAt(defne.headWorld(V()));
       P.photo.unfold = 1; P.photo.flip = smoothstep(0.1, 0.6, lt);
-      const n = defne.headWorld(V()).sub(hp).normalize();
-      const far = smoothstep(4.8, 7.2, lt);
-      cam(ctx, lt, { pos: (t) => hp.clone().addScaledVector(n, 0.26 + far * 0.25).add(V(0.0, 0.03 + far * 0.08, 0)), target: (t) => hp.clone().lerp(defne.headWorld(V()), far * 0.7), fov: 34, shake: 0.15, dof: 1, focus: (t) => 0.26 + far * 0.3, aperture: 0.05 });
-      keyAt(ctx, hp.clone().addScaledVector(n, 0.6).add(V(0.3, 0.5, 0)), hp, 8, 0xd8e0f0, 0.5);
-      rimAt(ctx, defne.headWorld(V()).add(V(-0.6, 0.5, -0.8)), defne.headWorld(V()), 10, 0x6a90c0);
+      const head = defne.headWorld(V());
+      const n = head.clone().sub(hp).normalize();
+      // 0–4.8 sn: Defne'nin gözünden not (POV). 4.8 sn'de kesme: önden, korkmuş yüzüne yavaş itme
+      // (eski geri çekilme hareketi kamerayı başın içinden geçiriyordu)
+      const CUT = 4.8;
+      if (lt < CUT) {
+        cam(ctx, lt, { pos: hp.clone().addScaledVector(n, 0.26).add(V(0, 0.03, 0)), target: hp, fov: 34, shake: 0.15, dof: 1, focus: 0.26, aperture: 0.05 });
+        keyAt(ctx, hp.clone().addScaledVector(n, 0.6).add(V(0.3, 0.5, 0)), hp, 8, 0xd8e0f0, 0.5);
+      } else {
+        const fc = faceCam(defne);
+        const fw = fc.fwd.clone().setY(0).normalize(), sd = V(fw.z, 0, -fw.x);
+        const k = smoothstep(CUT, 7.2, lt);
+        const camPos = head.clone().addScaledVector(fw, 0.66 - 0.1 * k).addScaledVector(sd, 0.14).add(V(0, 0.0, 0));
+        const camTgt = head.clone().add(V(0, -0.05, 0));
+        defne.autoBlink = false;
+        cam(ctx, lt, { pos: camPos, target: camTgt, fov: 32, shake: 0.12, dof: 1, focus: camPos.distanceTo(head), aperture: 0.04 });
+        keyAt(ctx, head.clone().addScaledVector(fw, 1.1).addScaledVector(sd, -0.7).add(V(0, 0.7, 0)), head, 6, 0xd0dcf0, 0.45);
+      }
+      rimAt(ctx, head.clone().add(V(-0.6, 0.5, -0.8)), head, 10, 0x6a90c0);
       ctx.post.letterbox = 1;
     } },
   { id: 's4_08', scene: 4, set: SET, dur: 7.0, desc: 'Karanlık ekranın yansıması: Defne’nin gölgesi köşeye el sallar',
@@ -158,8 +172,8 @@ export const scene4 = [
       const wv = smoothstep(2.0, 2.8, lt);
       defneShadow.setPose('wave', wv); defneShadow.mixPose({ rWrist: [0, Math.sin(ctx.t * 7) * 0.5 * wv, 0], rElbow: [Math.sin(ctx.t * 7) * 0.25 * wv] });
       defneShadow.lookAt(V(4.8, 1.3, 3.8), 0.8, 0); defneShadow.autoBlink = false;
-      // gölgenin arkasındaki duvarı soğukça aydınlat (siluet okunsun)
-      keyAt(ctx, V(1.8, 2.8, -2.2), V(3.4, 1.2, 0.6), 45, 0x8aaad8, 0.7);
+      // gölgenin arkasındaki ön-sağ köşeyi soğukça aydınlat (yansımada siyah siluet net okunsun)
+      keyAt(ctx, V(2.4, 2.95, 1.0), V(4.3, 0.9, 3.9), 140, 0x8aaad8, 0.6);
       fillAt(ctx, V(1.7, 2.4, -1.2), 5, 0x9ab0d0, 5);
       cam(ctx, lt, { pos: vtrack([[0, [1.7, 1.55, -2.35]], [7, [1.7, 1.58, -3.05]]], 'inOutSine'), target: V(1.7, 1.55, -3.95), fov: 40 });
       ctx.post.letterbox = 1; ctx.post.vignette = 0.65; ctx.post.fade = smoothstep(5.8, 7.0, lt);
