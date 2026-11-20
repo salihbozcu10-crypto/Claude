@@ -55,7 +55,8 @@ function crt() {
   glass.position.set(0, 0.28, 0.1765); group.add(glass);
   const light = new THREE.PointLight(0x40ff80, 0, 4, 1.6); light.position.set(0, 0.45, 0.9); group.add(light);
   const st = {};
-  const reset = () => Object.assign(st, { power: 0, countdown: 900, message: 0, glitch: 0, reflection: 0, light: 1, msgColor: '#ff1a1a' });
+  // glassSheen: camın ışık parlamaları (spekülar) çarpanı; yansıma çekiminde nokta parlamalar yansımayı boğmasın
+  const reset = () => Object.assign(st, { power: 0, countdown: 900, message: 0, glitch: 0, reflection: 0, glassSheen: 1, light: 1, msgColor: '#ff1a1a' });
   reset();
   const MSG = 'Sizi 3 yıl önce sistemden sildik. Şimdi silinme sırası onlarda.';
   function draw(t) {
@@ -105,6 +106,7 @@ function crt() {
     light.intensity = pw * st.light * 0.7 * (0.85 + 0.15 * noise1(t * 30));
     pled.material.color.setRGB(0.25, 1, 0.37).multiplyScalar(pw > 0.1 ? 2 : 0);
     refl.visible = st.reflection > 0.01; refl.material.uniforms.strength.value = st.reflection;
+    glass.material.opacity = clamp(st.glassSheen); glass.visible = st.glassSheen > 0.01;
   }
   return Object.assign(st, { group, update, reset, preview(t) { st.power = 1; st.countdown = 900 - t; st.message = 0.6; } });
 }
@@ -124,12 +126,13 @@ function flashlight() {
   const glare = new THREE.Mesh(new THREE.CircleGeometry(0.09, 24), new THREE.MeshBasicMaterial({ map: canvasTexture(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,240,210,1)'); gr.addColorStop(0.3, 'rgba(255,230,200,0.35)'); gr.addColorStop(1, 'rgba(255,230,200,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   glare.position.z = 0.145; group.add(glare);
   const st = {};
-  const reset = () => Object.assign(st, { on: 1, flicker: 0, intensity: 1 });
+  // beam: hacimsel huzme konisinin çarpanı (kameraya doğru bakan uzak çekimlerde kapatılabilir)
+  const reset = () => Object.assign(st, { on: 1, flicker: 0, intensity: 1, beam: 1 });
   reset();
   function update(t) {
     let k = st.on * st.intensity;
     if (st.flicker > 0) k *= 1 - st.flicker * (fbm1(t * 25) > 0.1 ? 0.8 : 0);
-    spot.intensity = 40 * k; lensMat.color.setRGB(1, 0.95, 0.85).multiplyScalar(6 * k); beam.material.uniforms.intensity.value = 0.08 * k; glare.visible = k > 0.05; beam.visible = k > 0.02;
+    spot.intensity = 40 * k; lensMat.color.setRGB(1, 0.95, 0.85).multiplyScalar(6 * k); beam.material.uniforms.intensity.value = 0.08 * k * st.beam; glare.visible = k > 0.05; glare.material.opacity = clamp(k); beam.visible = k * st.beam > 0.02;
     beam.userData.setTime(t);
   }
   return Object.assign(st, { group, update, reset, keepParent: false, spot });
