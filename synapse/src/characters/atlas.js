@@ -8,7 +8,7 @@
 // ch.extras.digitalEyes: ch.face.eyeGlow ile iris üstünde parlayan devre halkaları
 import * as THREE from 'three';
 import { defaultOutfit } from './rig.js';
-import { hairShell, hairlineFn, angles, strandNormal, strandColor, scatterRoots, flowLock, lock, merge } from './hairkit.js';
+import { hairShell, hairlineFn, hairMask, angles, strandNormal, strandColor, scatterRoots, flowLock, lock, merge } from './hairkit.js';
 import { clothMaterial, torsoSector, profileR, boot } from './wardrobe.js';
 import { hairMaterial, charMaterial, glowMaterial } from '../engine/materials.js';
 import { smoothstep, rng, fbm3, fbm1 } from '../engine/util.js';
@@ -55,7 +55,19 @@ export default {
       bones.chest.add(new THREE.Mesh(lock(pts2, 0.0035, 0.002, { taper: 1, rootTaper: 1, segs: 14, radial: 4 }), trim));
     }
     // yüksek yaka
-    const collar = new THREE.Mesh(ctx.geo.lathe([[B.neckR * 1.55, 0.18], [B.neckR * 1.5, 0.22], [B.neckR * 1.42, 0.26], [B.neckR * 1.48, 0.27]], 32, 1.15, 1.05), jacket);
+    // önde/yan-önde alçalıp hafif açılır: baş öne eğildiğinde çene ve yanak yakanın içine gömülmesin
+    const colG = ctx.geo.lathe([[B.neckR * 1.55, 0.18], [B.neckR * 1.5, 0.22], [B.neckR * 1.42, 0.26], [B.neckR * 1.48, 0.27]], 48, 1.15, 1.05);
+    {
+      const p = colG.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i), y = p.getY(i), z = p.getZ(i); const r = Math.hypot(x, z) || 1;
+        const f = smoothstep(-0.6, 0.85, z / r), h = Math.max(0, y - 0.19) / 0.08;
+        const fl = 1 + 0.2 * f * h;
+        p.setXYZ(i, x * fl, y - 0.04 * f * h, z * fl);
+      }
+      colG.computeVertexNormals();
+    }
+    const collar = new THREE.Mesh(colG, jacket);
     collar.material = jacket; bones.chest.add(collar);
     // sırtta kapüşon
     const hood = new THREE.Mesh(new THREE.SphereGeometry(0.09, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.6), jacket);
@@ -113,16 +125,21 @@ export default {
 
   hair(ctx) {
     const { bones, headF } = ctx;
-    const hl = hairlineFn([[0, 0.56], [0.5, 0.4], [1.0, 0.16], [1.4, 0.02], [1.9, -0.3], [Math.PI, -0.5]]);
-    const mask = (d) => { const { el, az } = angles(d); return smoothstep(hl(az) - 0.03, hl(az) + 0.08, el); };
+    // hl0: özgün saç çizgisi (tutam kökleri bununla seçilir → önden görünüm aynı kalır)
+    // hl: kabuk için; arkada kulak gerisinden enseye (boynun kafadan çıktığı hatta) iner
+    const hl0 = hairlineFn([[0, 0.56], [0.5, 0.4], [1.0, 0.16], [1.4, 0.02], [1.9, -0.3], [Math.PI, -0.5]]);
+    const hl = hairlineFn([[0, 0.56], [0.5, 0.4], [1.0, 0.16], [1.4, 0.02], [1.72, -0.22], [1.88, -0.68], [2.05, -1.06], [2.4, -1.03], [Math.PI, -0.98]]);
+    const mask0 = (d) => { const { el, az } = angles(d); return smoothstep(hl0(az) - 0.03, hl0(az) + 0.08, el); };
+    const mask = hairMask(hl, -0.03, 0.08);
     const thick = (d) => {
       const top = smoothstep(0.1, 0.95, d.y);
       const sides = 1 - smoothstep(0.3, 0.9, Math.abs(d.x)) * (1 - top);
-      return (0.006 + 0.03 * top * (0.7 + 0.3 * smoothstep(-0.5, 0.6, d.z))) * (0.5 + 0.5 * sides) + fbm3(d.x * 6, d.y * 6, d.z * 6, 2) * 0.004;
+      const nape = 0.6 + 0.4 * smoothstep(-0.9, -0.45, d.y); // ensede incelir
+      return Math.max(0.0025, ((0.006 + 0.03 * top * (0.7 + 0.3 * smoothstep(-0.5, 0.6, d.z))) * (0.5 + 0.5 * sides) + fbm3(d.x * 6, d.y * 6, d.z * 6, 2) * 0.004) * nape);
     };
     const mat = hairMaterial(0xffffff, { map: strandColor(0x120c09, 0x2e1f16, 21), normalMap: strandNormal(), roughness: 0.5 });
     mat.normalScale = new THREE.Vector2(0.15, 0.15);
-    bones.face.add(new THREE.Mesh(hairShell(headF, thick, mask), mat));
+    bones.face.add(new THREE.Mesh(hairShell(headF, thick, mask, { ws: 400, hs: 180 }), mat));
     const surf = (d) => headF(d).addScaledVector(d, thick(d) * smoothstep(0, 1, mask(d)));
     const R = rng(31);
     // akış: önde yukarı ve sağa (−x) savrulan, tepede arkaya, yanlarda aşağı-arkaya
@@ -134,7 +151,7 @@ export default {
       return f.normalize();
     };
     const geos = [];
-    for (const d of scatterRoots(mask, 46, 9, 0.5)) {
+    for (const d of scatterRoots(mask0, 46, 9, 0.5)) {
       const topK = smoothstep(0.3, 0.8, d.y);
       const len = 0.04 + 0.08 * topK + R() * 0.03;
       geos.push(flowLock(surf, d, flow, { len, steps: 10, w: 0.04 + 0.016 * topK, t: 0.011, lift: (s) => 0.002 + (0.004 + 0.006 * topK) * Math.sin(Math.PI * Math.min(1, s * 1.15)), taper: 0.18 }));
@@ -146,10 +163,23 @@ export default {
       const pts = [p0, p0.clone().add(V(-0.01, 0.03, 0.012)), p0.clone().add(V(-0.03 - i * 0.004, 0.055, 0.0)), p0.clone().add(V(-0.06 - i * 0.006, 0.06, -0.03))];
       geos.push(lock(pts, 0.034, 0.013, { taper: 0.1, segs: 16, radial: 8 }));
     }
-    for (const [x, len] of [[0.03, 0.07], [0.055, 0.055]]) {
+    // (alın telleri: kaşa inmeden biter ve alnın üstünde yatar — önceden deriden çıkıp kaşı deliyordu)
+    for (const [x, len] of [[0.03, 0.027], [0.055, 0.021]]) {
       const root = V(x, 0.6, 0.8).normalize(); const p0 = surf(root);
       const pts = [p0, p0.clone().add(V(0.004, 0.012, 0.016)), p0.clone().add(V(0.012, -len * 0.4, 0.02)), p0.clone().add(V(0.02, -len, 0.012))];
-      geos.push(lock(pts, 0.012, 0.006, { taper: 0.15, segs: 14, radial: 6 }));
+      for (const p of pts.slice(1)) p.z = Math.max(p.z, ctx.facePoint(p.x, p.y, 0.0045).z);
+      geos.push(lock(pts, 0.014, 0.0065, { taper: 0.3, segs: 14, radial: 6 }));
+    }
+    // ense: yeni kapanan alt-arka bölgede aşağı akan kısa, dağınık tutamlar (düz kabuğu kırar)
+    {
+      const R2 = rng(77);
+      const down = (d) => V(-0.25 * d.x, -1, 0).normalize();
+      // kökler yeni saç çizgisinin epey üstünde: tutam uçları deriye taşmaz
+      const deep = (q) => { const { el, az } = angles(q); return el > hl(az) + 0.3 ? 1 - mask0(q) : 0; };
+      for (const d of scatterRoots(deep, 18, 13, 0.6)) {
+        const len = 0.022 + R2() * 0.018;
+        geos.push(flowLock(surf, d, down, { len, steps: 8, w: 0.032, t: 0.008, lift: (s) => 0.0015 + 0.003 * Math.sin(Math.PI * s), taper: 0.2 }));
+      }
     }
     bones.face.add(new THREE.Mesh(merge(geos), mat));
   },

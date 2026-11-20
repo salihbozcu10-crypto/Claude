@@ -21,6 +21,18 @@ export function hairlineFn(points) {
   };
 }
 
+// Saç maskesi: hl çizgisine DİK mesafeyle yumuşak geçiş. Dik inen kesimlerde (kulak arkası → ense)
+// yalnızca yükseklik açısına göre geçiş çok dar kalıp kabuk kenarını testere dişi yapıyordu.
+// Ön/yan saç çizgisinde (|az| < 1.4) eski formülle birebir aynıdır.
+export function hairMask(hl, lo, hi) {
+  return (d) => {
+    const { el, az } = angles(d); const a = Math.abs(az);
+    let k = 1;
+    if (a > 1.4) { const e = 0.01; const s = (hl(a + e) - hl(a - e)) / (2 * e); k = 1 + (Math.sqrt(1 + s * s) - 1) * smoothstep(1.4, 1.6, a); }
+    return smoothstep(lo, hi, (el - hl(az)) / k);
+  };
+}
+
 // Saç teli normal haritası (akış yönü boyunca çizgiler)
 let _strand = null;
 export function strandNormal() {

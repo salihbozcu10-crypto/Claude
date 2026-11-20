@@ -4,7 +4,7 @@
 // Gizli karanlık: buklelerin arasında ince koyu mor bir tutam.
 import * as THREE from 'three';
 import { defaultOutfit } from './rig.js';
-import { hairShell, hairlineFn, angles, strandNormal, strandColor, scatterRoots, helixPoints, lock, merge } from './hairkit.js';
+import { hairShell, hairlineFn, hairMask, angles, strandNormal, strandColor, scatterRoots, helixPoints, lock, merge } from './hairkit.js';
 import { denimMaterial, stripeMaterial, torsoSector, profileR, strap, button, sneaker, clothMaterial } from './wardrobe.js';
 import { hairMaterial, charMaterial, glowMaterial } from '../engine/materials.js';
 import { smoothstep, rng, fbm3 } from '../engine/util.js';
@@ -83,18 +83,23 @@ export default {
 
   hair(ctx) {
     const { bones, headF } = ctx;
-    const hl = hairlineFn([[0, 0.5], [0.55, 0.36], [1.05, 0.1], [1.45, -0.05], [1.9, -0.32], [Math.PI, -0.55]]);
-    const mask = (d) => { const { el, az } = angles(d); return smoothstep(hl(az) - 0.03, hl(az) + 0.1, el); };
+    // hl0: özgün saç çizgisi (bukle kökleri bununla seçilir → önden görünüm aynı kalır)
+    // hl: kabuk için; arkada enseye (boynun kafadan çıktığı hatta) kadar iner
+    const hl0 = hairlineFn([[0, 0.5], [0.55, 0.36], [1.05, 0.1], [1.45, -0.05], [1.9, -0.32], [Math.PI, -0.55]]);
+    const hl = hairlineFn([[0, 0.5], [0.55, 0.36], [1.05, 0.1], [1.45, -0.05], [1.72, -0.22], [1.88, -0.7], [2.05, -1.1], [2.4, -1.12], [Math.PI, -1.05]]);
+    const mask0 = (d) => { const { el, az } = angles(d); return smoothstep(hl0(az) - 0.03, hl0(az) + 0.1, el); };
+    const mask = hairMask(hl, -0.03, 0.1);
     const thick = (d) => {
       const up = smoothstep(-0.4, 0.9, d.y);
       const bump = fbm3(d.x * 9, d.y * 9, d.z * 9, 2) * 0.006;
+      const nape = 0.45 + 0.55 * smoothstep(-0.95, -0.45, d.y); // ensede yukarı taranmış, ince
       // arkada yukarı toplanmış (at kuyruğuna doğru gergin), yanlarda hafif kabarık
-      return 0.012 + 0.02 * up + 0.006 * Math.abs(d.x) + bump;
+      return Math.max(0.003, (0.012 + 0.02 * up + 0.006 * Math.abs(d.x) + bump) * nape);
     };
     const base = 0x24120a, tip = 0x4a2a16;
     const mat = hairMaterial(0xffffff, { map: strandColor(base, tip, 3), normalMap: strandNormal(), roughness: 0.5 });
     mat.normalScale = new THREE.Vector2(0.2, 0.2);
-    const shell = new THREE.Mesh(hairShell(headF, thick, mask), mat);
+    const shell = new THREE.Mesh(hairShell(headF, thick, mask, { ws: 400, hs: 180 }), mat);
     bones.face.add(shell);
     const surf = (d) => headF(d).addScaledVector(d, thick(d) * smoothstep(0, 1, mask(d)));
     const R = rng(91);
@@ -103,12 +108,23 @@ export default {
     const P = surf(pd).addScaledVector(pd, 0.012);
     const geos = [], dark = [];
     // kabuk üzerindeki kıvırcık doku: kuyruğa doğru gerilmiş küçük bukleler
-    for (const d of scatterRoots(mask, 75, 5, 0.55)) {
+    for (const d of scatterRoots(mask0, 75, 5, 0.55)) {
       const p = surf(d);
       let ax = P.clone().sub(p); ax.addScaledVector(d, -ax.dot(d)); ax.normalize();
       const len = 0.05 + R() * 0.05;
       const pts = helixPoints(p.clone().addScaledVector(d, 0.005), ax, len, 0.0075 + R() * 0.003, 1.3 + R() * 0.8, 16, R() * 6);
       geos.push(lock(pts, 0.022, 0.016, { taper: 0.45, segs: 18, radial: 7, rootTaper: 0.8 }));
+    }
+    // ense: yeni kapanan alt-arka bölgede, topuza doğru yukarı taranmış küçük bukleler
+    {
+      const R2 = rng(57);
+      for (const d of scatterRoots((q) => mask(q) - mask0(q), 22, 15, 0.5)) {
+        const p = surf(d);
+        let ax = P.clone().sub(p); ax.addScaledVector(d, -ax.dot(d)); ax.normalize();
+        const len = 0.045 + R2() * 0.04;
+        const pts = helixPoints(p.clone().addScaledVector(d, 0.003), ax, len, 0.006 + R2() * 0.0025, 1.3 + R2() * 0.8, 16, R2() * 6);
+        geos.push(lock(pts, 0.02, 0.013, { taper: 0.45, segs: 18, radial: 7, rootTaper: 0.8 }));
+      }
     }
     // at kuyruğu: tepede kabarık kıvırcık topuz + aşağı dökülen bukleler
     const C = P.clone().add(V(0, 0.045, -0.045)); const RB = 0.068;
@@ -140,6 +156,9 @@ export default {
       const ax = isFringe ? V(0.75, -0.45, 0.1).normalize() : V(Math.sign(x) * 0.3, -1, -0.05).normalize();
       const len = isFringe ? 0.06 : 0.09 + R() * 0.05;
       const pts = helixPoints(p.clone().addScaledVector(d, 0.006), ax, len, isFringe ? 0.008 : 0.009 + R() * 0.004, isFringe ? 1.6 : 2.6 + R(), 24, R() * 6);
+      // bukle sarmalı yanak/şakak derisine girmesin: kök sabit, gövde en derin batma kadar dışa itilir
+      let pen = 0; for (const q of pts) pen = Math.max(pen, headF(q.clone().normalize()).length() + 0.0095 - q.length());
+      if (pen > 0) pts.forEach((q, j) => q.addScaledVector(d, pen * smoothstep(0, 0.3, j / (pts.length - 1))));
       (i === 2 ? dark : geos).push(lock(pts, 0.018, 0.013, { taper: 0.3, segs: 26, radial: 6 }));
     });
     bones.face.add(new THREE.Mesh(merge(geos), mat));

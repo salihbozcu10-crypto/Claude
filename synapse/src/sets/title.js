@@ -9,7 +9,19 @@ const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 function textTex(lines, w = 2048, h = 512) {
   return canvasTexture(w, h, (g) => {
     g.clearRect(0, 0, w, h); g.textAlign = 'center'; g.textBaseline = 'middle';
-    for (const L of lines) { g.font = L.font; g.fillStyle = L.color || '#fff'; if (L.spacing) { if ('letterSpacing' in g) g.letterSpacing = L.spacing; } g.shadowColor = L.glow || 'transparent'; g.shadowBlur = L.blur || 0; g.fillText(L.text, w / 2, L.y * h); }
+    for (const L of lines) {
+      g.font = L.font; g.fillStyle = L.color || '#fff';
+      // ölç: harf aralığı ve parıltı payıyla birlikte tuvale sığmıyorsa yazıyı küçült
+      // (önceden "DEVAM EDECEK..." 2048 px tuvalden taşıyor, D ve son nokta kesiliyordu)
+      if ('letterSpacing' in g) g.letterSpacing = '0px';
+      const sp = parseFloat(L.spacing || '0') || 0;
+      const tw = g.measureText(L.text).width + sp * L.text.length;
+      const pad = (L.blur || 0) * 1.5 + 0.03 * w;
+      const k = Math.min(1, (w - 2 * pad) / Math.max(1, tw));
+      if (L.spacing && 'letterSpacing' in g) g.letterSpacing = L.spacing;
+      g.shadowColor = L.glow || 'transparent'; g.shadowBlur = L.blur || 0;
+      g.save(); g.translate(w / 2 + sp * 0.5 * k, L.y * h); g.scale(k, k); g.fillText(L.text, 0, 0); g.restore();
+    }
   });
 }
 
@@ -37,14 +49,16 @@ export function createTitle() {
   net.add(pulsePts);
   // logo
   const logoTex = textTex([{ text: 'SYNAPSE', font: '900 300px "DejaVu Sans", sans-serif', y: 0.5, color: '#ffffff', glow: '#40e0ff', blur: 40, spacing: '40px' }]);
-  const logoMat = new THREE.MeshBasicMaterial({ map: logoTex, transparent: true, depthWrite: false, color: new THREE.Color(0xc8f6ff).multiplyScalar(1.15), blending: THREE.AdditiveBlending });
+  const logoMat = new THREE.MeshBasicMaterial({ map: logoTex, transparent: true, depthWrite: false, color: new THREE.Color(0xc8f6ff).multiplyScalar(0.75), blending: THREE.AdditiveBlending });
+  // (katman yoğunlukları: üç eklemeli katmanın toplamı bloom eşiğinin altında kalır; önceden harfler
+  //  beyaza kırpılıp büyük bir bloom lekesine dönüşüyordu)
   const logo = new THREE.Mesh(new THREE.PlaneGeometry(4, 1), logoMat); logo.position.set(0, 0.15, 0); group.add(logo);
-  const logoR = logo.clone(); logoR.material = logoMat.clone(); logoR.material.color = new THREE.Color(0xff2a6a).multiplyScalar(0.9); group.add(logoR);
-  const logoB = logo.clone(); logoB.material = logoMat.clone(); logoB.material.color = new THREE.Color(0x2a6aff).multiplyScalar(0.9); group.add(logoB);
+  const logoR = logo.clone(); logoR.material = logoMat.clone(); logoR.material.color = new THREE.Color(0xff2a6a).multiplyScalar(0.5); group.add(logoR);
+  const logoB = logo.clone(); logoB.material = logoMat.clone(); logoB.material.color = new THREE.Color(0x2a6aff).multiplyScalar(0.5); group.add(logoB);
   const subTex = textTex([{ text: '1. BÖLÜM  ·  ÖLÜ KOD', font: '600 120px "DejaVu Sans", sans-serif', y: 0.5, color: '#ffd84a', glow: '#ffb020', blur: 18, spacing: '18px' }], 2048, 256);
-  const sub = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.4), new THREE.MeshBasicMaterial({ map: subTex, transparent: true, depthWrite: false, color: new THREE.Color(0xffffff).multiplyScalar(1.5) })); sub.position.set(0, -0.62, 0); group.add(sub);
-  const endTex = textTex([{ text: 'DEVAM EDECEK...', font: 'italic 700 200px "DejaVu Sans", sans-serif', y: 0.5, color: '#ffffff', glow: '#ff3cc8', blur: 30, spacing: '20px' }]);
-  const endM = new THREE.Mesh(new THREE.PlaneGeometry(4, 1), new THREE.MeshBasicMaterial({ map: endTex, transparent: true, depthWrite: false, color: new THREE.Color(0xffffff).multiplyScalar(1.6) })); endM.position.set(0, 0.1, 0); group.add(endM);
+  const sub = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.4), new THREE.MeshBasicMaterial({ map: subTex, transparent: true, depthWrite: false, color: new THREE.Color(0xffffff).multiplyScalar(1.0) })); sub.position.set(0, -0.62, 0); group.add(sub);
+  const endTex = textTex([{ text: 'DEVAM EDECEK...', font: 'italic 700 200px "DejaVu Sans", sans-serif', y: 0.5, color: '#ffffff', glow: '#ff3cc8', blur: 30, spacing: '20px' }], 3072, 512);
+  const endM = new THREE.Mesh(new THREE.PlaneGeometry(6, 1), new THREE.MeshBasicMaterial({ map: endTex, transparent: true, depthWrite: false, color: new THREE.Color(0xffffff).multiplyScalar(0.8) })); endM.position.set(0, 0.1, 0); group.add(endM);
   const smallTex = textTex([{ text: 'SYNAPSE', font: '900 200px "DejaVu Sans", sans-serif', y: 0.5, color: '#9ff0ff', glow: '#40e0ff', blur: 20, spacing: '30px' }], 2048, 512);
   const small = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshBasicMaterial({ map: smallTex, transparent: true, depthWrite: false, color: new THREE.Color(0xffffff).multiplyScalar(1.2) })); small.position.set(0, -0.75, 0); group.add(small);
 
