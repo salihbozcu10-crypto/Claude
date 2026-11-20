@@ -8,6 +8,7 @@
     "build": "node tools/build.mjs"
   },
   "devDependencies": {
+    "@fontsource/caveat": "^5.3.0",
     "esbuild": "^0.28.2",
     "three": "^0.187.0"
   }

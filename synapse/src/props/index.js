@@ -9,6 +9,7 @@
 // cable       : nöral kablo. setEnds(a, b, sag), pulse 0..1, plugSpark 0..1, plugAt (b ucunda fiş)
 // photo       : buruşuk eski fotoğraf. unfold 0..1, flip 0..1 (arkası: el yazısı not)
 import * as THREE from 'three';
+import { HAND_FONT, fontsReady } from '../engine/fonts.js';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import { envMaterial, glowMaterial, canvasTexture, charMaterial } from '../engine/materials.js';
 import { roundedBox, lock } from '../characters/geo.js';
@@ -256,6 +257,17 @@ function cable() {
 function photo() {
   const group = new THREE.Group(); group.name = 'photo';
   const PW = 0.15, PH = 0.105;
+  // buruşukluk izleri (kâğıt buruşuk bulundu): her iki yüzde de soluk kırışık çizgileri
+  const creases = (g, w, h, seed, a) => {
+    const R = rng(seed);
+    const lines = [[0.08, 0.35, 0.95, 0.52], [0.3, 0.02, 0.42, 0.98], [0.62, 0.0, 0.7, 1.0], [0.0, 0.78, 1.0, 0.7], [0.15, 0.95, 0.55, 0.4]];
+    for (const [x0, y0, x1, y1] of lines) {
+      const pts = []; for (let k = 0; k <= 12; k++) { const t = k / 12; pts.push([(x0 + (x1 - x0) * t) * w + (R() - 0.5) * 10, (y0 + (y1 - y0) * t) * h + (R() - 0.5) * 10]); }
+      for (const [col, off] of [[`rgba(255,255,255,${a * 1.2})`, -1.2], [`rgba(60,40,20,${a})`, 1.0]]) {
+        g.strokeStyle = col; g.lineWidth = 1.6; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x + off, y + off) : g.moveTo(x + off, y + off))); g.stroke();
+      }
+    }
+  };
   const front = canvasTexture(600, 420, (g, w, h) => {
     g.fillStyle = '#efe6d2'; g.fillRect(0, 0, w, h);
     const ix = 22, iy = 22, iw = w - 44, ih = h - 80;
@@ -281,23 +293,45 @@ function photo() {
     const R = rng(12); g.fillStyle = 'rgba(255,240,200,0.18)'; g.fillRect(ix, iy, iw, ih);
     for (let i = 0; i < 40; i++) { g.strokeStyle = `rgba(255,255,255,${R() * 0.4})`; g.lineWidth = 1; g.beginPath(); const x = ix + R() * iw, y = iy + R() * ih; g.moveTo(x, y); g.lineTo(x + (R() - 0.5) * 120, y + (R() - 0.5) * 40); g.stroke(); }
     g.fillStyle = '#7a6a50'; g.font = 'italic 22px serif'; g.fillText('çatı · ??.??.20??', 30, h - 22);
+    creases(g, w, h, 46, 0.16);
   });
-  const backTex = canvasTexture(600, 420, (g, w, h) => {
+  const drawBack = (g, w, h) => {
     g.fillStyle = '#eee7d8'; g.fillRect(0, 0, w, h); const R = rng(44);
     for (let i = 0; i < 1200; i++) { g.fillStyle = `rgba(120,100,70,${R() * 0.06})`; g.fillRect(R() * w, R() * h, 3, 3); }
+    creases(g, w, h, 45, 0.12);
+    // Defne'nin el yazısı (Caveat): satır eğimi, harf başına küçük kayma/dönme, mürekkep yoğunluğu değişimi
     const lines = ['Eğer bu notu okuyorsan,', 'döngüyü yine başlattın', 'demektir.', '', '4. kişiye dikkat et.'];
-    g.fillStyle = '#1c2a5a'; g.textBaseline = 'alphabetic';
-    let y = 90;
+    g.textBaseline = 'alphabetic';
+    let y = 92;
     lines.forEach((ln, li) => {
-      let x = 44; const big = li === 4;
-      g.font = `${big ? 'bold italic 46px' : 'italic 40px'} "DejaVu Serif", serif`;
-      if (big) g.fillStyle = '#7a1010';
-      for (const ch of ln) { g.save(); g.translate(x, y + (R() - 0.5) * 3); g.rotate((R() - 0.5) * 0.12 - 0.04); g.fillText(ch, 0, 0); g.restore(); x += g.measureText(ch).width * (0.92 + R() * 0.12); }
-      if (big) { g.strokeStyle = '#7a1010'; g.lineWidth = 3; g.beginPath(); g.moveTo(44, y + 12); g.lineTo(x, y + 8); g.stroke(); }
-      y += ln ? 62 : 30;
+      if (!ln) { y += 26; return; }
+      const big = li === 4; let x = big ? 52 : 40 + li * 6;
+      const size = big ? 64 : 54; const slope = (R() - 0.5) * 0.03 - 0.012;
+      g.font = `600 ${size}px "${HAND_FONT}", "DejaVu Sans", sans-serif`;
+      const ink = big ? [122, 16, 22] : [28, 40, 92];
+      for (const ch of ln) {
+        const a = 0.82 + R() * 0.18;
+        g.save(); g.translate(x, y + (x - 40) * slope + (R() - 0.5) * 2.4); g.rotate((R() - 0.5) * 0.07 - 0.02);
+        g.fillStyle = `rgba(${ink[0]},${ink[1]},${ink[2]},${a})`; g.fillText(ch, 0, 0); g.restore();
+        x += g.measureText(ch).width * (0.96 + R() * 0.08);
+      }
+      if (big) {
+        // elle çekilmiş dalgalı alt çizgi (iki geçiş)
+        for (let pass = 0; pass < 2; pass++) {
+          g.strokeStyle = `rgba(122,16,22,${0.85 - pass * 0.25})`; g.lineWidth = 3.2 - pass * 1.2; g.lineCap = 'round'; g.beginPath();
+          const x0 = 48 + pass * 6, x1 = x - 4 - pass * 10, yy = y + 14 + pass * 5;
+          for (let k = 0; k <= 24; k++) { const t = k / 24; const px = x0 + (x1 - x0) * t; const py = yy + (px - 40) * slope + Math.sin(t * 9 + pass) * 1.6 + (R() - 0.5) * 1.2 - t * 3; k ? g.lineTo(px, py) : g.moveTo(px, py); }
+          g.stroke();
+        }
+      }
+      y += big ? 70 : 60;
     });
-    g.fillStyle = '#1c2a5a'; g.font = 'italic 30px "DejaVu Serif", serif'; g.fillText('— D.', w - 140, h - 40);
-  });
+    g.fillStyle = 'rgba(28,40,92,0.9)'; g.font = `600 40px "${HAND_FONT}", "DejaVu Sans", sans-serif`;
+    g.save(); g.translate(w - 130, h - 34); g.rotate(-0.06); g.fillText('— D.', 0, 0); g.restore();
+  };
+  const backTex = canvasTexture(600, 420, drawBack);
+  // el yazısı yazı tipi yüklendiğinde arka yüzü yeniden çiz (SYN.ready bundan sonra true olur)
+  fontsReady.then(() => { const c = backTex.image; drawBack(c.getContext('2d'), c.width, c.height); backTex.needsUpdate = true; });
   const geo = new THREE.PlaneGeometry(PW, PH, 30, 20);
   const restPos = geo.attributes.position.array.slice();
   const mFront = charMaterial(0xffffff, { map: front, roughness: 0.55, sheen: 0, clearcoat: 0.3, rim: 0.2 });
@@ -313,7 +347,7 @@ function photo() {
         const x = restPos[i * 3], y = restPos[i * 3 + 1];
         const n = fbm3(x * 40, y * 40, 3, 3);
         const fold = Math.abs(Math.sin(x * 60)) * 0.004 + Math.abs(Math.sin(y * 70 + 1)) * 0.003;
-        p.setXYZ(i, x * (1 - c * 0.45), y * (1 - c * 0.45), (n * 0.04 + fold) * c + fold * 0.15);
+        p.setXYZ(i, x * (1 - c * 0.45), y * (1 - c * 0.45), (n * 0.04 + fold) * c + fold * 0.45);
       }
       p.needsUpdate = true; geo.computeVertexNormals();
     }

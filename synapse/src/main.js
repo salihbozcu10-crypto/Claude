@@ -15,6 +15,7 @@ import { createTimeline } from './engine/timeline.js';
 import { buildEpisode } from './shots/episode.js';
 import { studioLights } from './engine/studio.js';
 import { EXPR } from './characters/rig.js';
+import { fontsReady } from './engine/fonts.js';
 
 let q = new URLSearchParams(location.search);
 const W = +(q.get('w') || 1920), H = +(q.get('h') || 1080);
@@ -175,10 +176,12 @@ window.SYN = {
   shots() { return timeline ? timeline.list.map((s) => ({ id: s.id, scene: s.scene, start: s.start, dur: s.dur, desc: s.desc || '' })) : []; },
   // önizleme sorgusunu sayfayı yeniden yüklemeden değiştir (çoklu inceleme için)
   setQuery(str) { const keep = ['w', 'h', 'msaa', 'render']; const nq = new URLSearchParams(str); for (const k of keep) if (q.get(k) && !nq.get(k)) nq.set(k, q.get(k)); q = nq; mode = q.get('mode') || mode; },
-  ready: true,
+  ready: false,
 };
 
 // tarayıcıda doğrudan açılırsa gerçek zamanlı önizleme
+// gömülü yazı tipleri yüklenince (fotoğraf notu yeniden çizildikten sonra) hazır
+fontsReady.then(() => { window.SYN.ready = true; });
 if (!q.get('render')) {
   const t0 = performance.now(); const start = +(q.get('t') || 0);
   const loop = () => { window.SYN.renderTime(start + (performance.now() - t0) / 1000); requestAnimationFrame(loop); };

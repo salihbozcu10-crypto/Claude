@@ -81,3 +81,4 @@ otomatik gizlenir.
   kadın sesleri WORLD vokoderi (pyworld) ile perde/formant dönüşümüyle türetildi. Ticari kullanıma uygundur.
 - Müzik ve ses efektleri: bu depodaki betiklerle sentezlendi (özgün).
 - 3D: [three.js](https://threejs.org) (MIT). Tüm modeller, dokular ve animasyonlar prosedüreldir.
+- El yazısı not: [Caveat](https://fonts.google.com/specimen/Caveat) yazı tipi (SIL Open Font License 1.1), `@fontsource/caveat` paketinden pakete gömülür.
