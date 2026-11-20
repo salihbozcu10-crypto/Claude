@@ -132,6 +132,8 @@ export function createBase(stage) {
     else { c.position.set(-4 + R() * 8.5, 0.033, -3 + R() * 6); c.rotation.set(Math.PI / 2, 0, R() * 6); if (Math.abs(c.position.x - 0.6) < 1.2 && Math.abs(c.position.z - 0.3) < 0.8) c.position.x += 2; }
     c.castShadow = true; group.add(c); cans.push(c);
   }
+  // kablo portunun tam önündeki kutu: sahne 3'te (state.deskCanAside) monitörün arkasına alınır, fiş görünsün
+  const portCan = cans[4], portCanHome = portCan.position.clone(), portCanAside = V(-1.2, 0.785 + 0.0625, -3.64);
   const laptop = new THREE.Group(); laptop.position.set(0.95, 0.815, 0.15); laptop.rotation.y = -0.5;
   const lb = new THREE.Mesh(roundedBox(0.34, 0.018, 0.24, 0.006, 2), envMaterial(0x2a2c30, { metalness: 0.6, roughness: 0.35 })); laptop.add(lb);
   const lsc = mkScreen(0, 0, 0, 0.32, 0.2, 0, 'code');
@@ -149,6 +151,10 @@ export function createBase(stage) {
   const pivot = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.14, 16), envMaterial(0x3a3e44, { metalness: 0.8, roughness: 0.4 })); pivot.rotation.z = Math.PI / 2; lever.add(pivot);
   const brkLamp = new THREE.Mesh(new THREE.CircleGeometry(0.025, 16), glowMaterial(0x30ff60, 2)); brkLamp.position.set(0.19, 0.28, 0.101); brk.add(brkLamp);
   group.add(brk);
+  // kol açısı: 0 → yukarı (hafif öne), 1 → odaya doğru dönüp aşağı, kutunun önünde
+  const leverAngle = (b) => 0.15 + b * 2.84;
+  // tutamağın dünya konumu (çekimler elleri buna bağlar; set.update'ten önce de doğru)
+  const breakerHandle = (b, out = V()) => out.set(0, 0.33, 0).applyEuler(new THREE.Euler(leverAngle(b), 0, 0)).add(lever.position).applyEuler(brk.rotation).add(brk.position);
   // not duvarı (kırmızı iplik)
   const notes = canvasTexture(512, 320, (g, w, h) => {
     g.fillStyle = '#5a4630'; g.fillRect(0, 0, w, h); const rr = rng(9); const pins = [];
@@ -187,10 +193,17 @@ export function createBase(stage) {
   const scan = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.1), scanMat); scan.position.set(0, 2.72, 0.075); doorG.add(scan);
   group.add(doorG);
   // kıvılcımlar
-  const sparkGeo = new THREE.BufferGeometry(); const NS = 60; const sparkPos = new Float32Array(NS * 3); sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
-  const sparkMat = new THREE.PointsMaterial({ color: new THREE.Color(0xffc060).multiplyScalar(4), size: 0.025, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+  // darbe noktasından (kilit tarafındaki kapı aralığı) odaya fışkıran kıvılcımlar: parlak baş + hareket izi
+  const sparkGeo = new THREE.BufferGeometry(); const NS = 60; const sparkPos = new Float32Array(NS * 3), sparkCol = new Float32Array(NS * 3);
+  sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3)); sparkGeo.setAttribute('color', new THREE.BufferAttribute(sparkCol, 3));
+  const sparkMat = new THREE.PointsMaterial({ size: 0.018, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
   const sparks = new THREE.Points(sparkGeo, sparkMat); sparks.frustumCulled = false; group.add(sparks);
+  const streakGeo = new THREE.BufferGeometry(); const streakPos = new Float32Array(NS * 6), streakCol = new Float32Array(NS * 6);
+  streakGeo.setAttribute('position', new THREE.BufferAttribute(streakPos, 3)); streakGeo.setAttribute('color', new THREE.BufferAttribute(streakCol, 3));
+  const streaks = new THREE.LineSegments(streakGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  streaks.frustumCulled = false; group.add(streaks);
   const sparkSeeds = Array.from({ length: NS }, () => [R(), R(), R(), R()]);
+  const sparkOrigins = [V(4.75, 1.25, 1.12), V(4.75, 0.72, 1.14), V(4.75, 1.6, 1.1)];
 
   // --- alarm ışıkları ---
   const beaconDefs = [V(4.75, 2.85, 1.6), V(-4.75, 2.85, -2.5), V(1.5, 3.1, -3.85)];
@@ -241,7 +254,7 @@ export function createBase(stage) {
   // --- durum ---
   const state = {};
   function reset() {
-    Object.assign(state, { mode: 'normal', alarm: 0, power: 1, afterDim: 0, countdown: null, countdownFrozen: false, countdownColor: null, screens: 'code', doorBangs: [], breaker: 0, tableImpactAt: null, cableAttached: true, wallMirror: 0, droneLight: 0, glitch: 0, emergency: 0 });
+    Object.assign(state, { mode: 'normal', alarm: 0, power: 1, afterDim: 0, countdown: null, countdownFrozen: false, countdownColor: null, countdownLabel: null, screens: 'code', doorBangs: [], breaker: 0, tableImpactAt: null, cableAttached: true, wallMirror: 0, droneLight: 0, glitch: 0, emergency: 0, deskCanAside: false });
   }
   reset();
 
@@ -260,7 +273,8 @@ export function createBase(stage) {
       const blink = state.countdownFrozen ? (Math.floor(t * 2) % 2 ? 1 : 0.35) : 1;
       g.globalAlpha = blink; g.fillText(fmt(state.countdown), w / 2, h * 0.52); g.globalAlpha = 1;
       g.font = `${Math.round(h * 0.08)}px "DejaVu Sans Mono", monospace`;
-      g.fillText(state.countdownFrozen ? 'SİSTEM DONDURULDU' : 'ZİHİN SENKRONİZASYONU', w / 2, h * 0.2);
+      if (state.countdownLabel) g.globalAlpha = Math.floor(t * 6) % 2 ? 1 : 0.45;
+      g.fillText(state.countdownLabel || (state.countdownFrozen ? 'SİSTEM DONDURULDU' : 'ZİHİN SENKRONİZASYONU'), w / 2, h * 0.2); g.globalAlpha = 1;
       g.fillStyle = col; g.globalAlpha = 0.25; for (let y = 0; y < h; y += 3) g.fillRect(0, y, w, 1); g.globalAlpha = 1;
     } else if (s.kind === 'map') {
       g.fillStyle = '#03101a'; g.fillRect(0, 0, w, h); g.strokeStyle = red ? '#ff4040' : '#1a8ac0'; g.lineWidth = 1;
@@ -328,8 +342,8 @@ export function createBase(stage) {
     beacons.forEach(({ g, dome }, i) => { const f = 0.5 + 0.5 * Math.cos(rot + i * 2); dome.material.color.setRGB(1, 0.1, 0.06).multiplyScalar(0.3 + al * (1.5 + 3 * f)); });
     alarmSpots.forEach((s, i) => { s.intensity = al * 55; const a = rot + i * 2.1; s.target.position.set(s.position.x + Math.cos(a) * 3, 0.5, s.position.z + Math.sin(a) * 3); });
     alarmWash.intensity = al * (3 + 3 * Math.max(0, Math.cos(rot * 2)));
-    // şalter
-    lever.rotation.x = 0.15 - state.breaker * 2.7;
+    // şalter: kol odaya doğru öne ve aşağı döner (kutunun içine değil)
+    lever.rotation.x = leverAngle(state.breaker);
     brkLamp.material.color.set(state.breaker > 0.5 ? 0xff2020 : 0x30ff60).multiplyScalar(2);
     // kapı darbeleri
     let shake = 0, flash = 0; let nHits = 0;
@@ -338,13 +352,25 @@ export function createBase(stage) {
     doorPanel.rotation.z = shake * 0.006;
     dents.forEach((d, i) => { d.visible = nHits > i * 2; });
     leakMat.color.setRGB(1, 0.35, 0.2).multiplyScalar(flash * 3 + al * 0.4 * (0.5 + 0.5 * Math.sin(t * 9)));
-    // kıvılcımlar (son darbeden)
-    let last = null; for (const bt of state.doorBangs) if (t >= bt) last = bt;
+    // kıvılcımlar (son darbeden): kapı aralığındaki tek noktadan odaya doğru patlama, her biri kendi ömrüyle söner
+    let last = null, lastI = 0; state.doorBangs.forEach((bt, i) => { if (t >= bt) { last = bt; lastI = i; } });
     if (last != null && t - last < 0.9) {
-      const age = t - last; sparks.visible = true; sparkMat.opacity = 1 - age / 0.9;
-      sparkSeeds.forEach(([a, b, c, d], i) => { const vx = -1.2 - a * 2, vy = 0.5 + b * 2, vz = (c - 0.5) * 2.4; const x0 = 4.85, y0 = 1.2 + (d - 0.5) * 1.8, z0 = 0.5 + (c - 0.5) * 1.2; sparkPos[i * 3] = x0 + vx * age; sparkPos[i * 3 + 1] = Math.max(0.01, y0 + vy * age - 4.9 * age * age); sparkPos[i * 3 + 2] = z0 + vz * age; });
-      sparkGeo.attributes.position.needsUpdate = true;
-    } else sparks.visible = false;
+      const age = t - last; sparks.visible = streaks.visible = true;
+      const O = sparkOrigins[lastI % sparkOrigins.length];
+      const pAt = (i, tt, out) => { const [a, b, c, d] = sparkSeeds[i]; const sp = 1.4 + a * 2.6; const ang = (c - 0.5) * 2.2, el = (b - 0.35) * 1.6;
+        const vx = -Math.cos(ang) * Math.cos(el) * sp, vz = Math.sin(ang) * Math.cos(el) * sp + 0.6, vy = Math.sin(el) * sp + 0.4;
+        out[0] = O.x + vx * tt; out[1] = Math.max(0.01, O.y + (d - 0.5) * 0.12 + vy * tt - 4.9 * tt * tt); out[2] = O.z + vz * tt; return out; };
+      const h0 = [0, 0, 0], h1 = [0, 0, 0];
+      for (let i = 0; i < NS; i++) {
+        const life = 0.3 + sparkSeeds[i][3] * 0.55; const k = clamp(1 - age / life);
+        const e = k * k * (1.3 + sparkSeeds[i][0]);
+        pAt(i, age, h0); pAt(i, Math.max(0, age - 0.035), h1);
+        sparkPos.set(h0, i * 3); streakPos.set(h0, i * 6); streakPos.set(h1, i * 6 + 3);
+        sparkCol.set([3.2 * e, 2.0 * e, 0.8 * e], i * 3); streakCol.set([2.6 * e, 1.5 * e, 0.5 * e], i * 6); streakCol.set([0.6 * e, 0.25 * e, 0.05 * e], i * 6 + 3);
+      }
+      sparkGeo.attributes.position.needsUpdate = sparkGeo.attributes.color.needsUpdate = true;
+      streakGeo.attributes.position.needsUpdate = streakGeo.attributes.color.needsUpdate = true;
+    } else sparks.visible = streaks.visible = false;
     // drone tarayıcı
     scanMat.color.setRGB(1, 0.1, 0.1).multiplyScalar(state.droneLight * 4 * (0.6 + 0.4 * Math.sin(t * 11)));
     scan.position.x = Math.sin(t * 1.4) * 0.45;
@@ -355,6 +381,7 @@ export function createBase(stage) {
       pcbs.forEach((p, i) => { p.position.y = 0.822 + (dt > 0 && dt < 0.3 ? Math.sin(dt / 0.3 * Math.PI) * 0.01 * (1 + i % 2) : 0); });
     } else tableCans.forEach((c) => { c.m.position.copy(c.base); c.m.rotation.copy(c.rot); });
     attachedCable.visible = state.cableAttached;
+    portCan.position.copy(state.deskCanAside ? portCanAside : portCanHome);
     // yansıma
     reflector.visible = state.wallMirror > 0.01; reflector.material.uniforms.strength.value = 1.15 * state.wallMirror;
     darkGlass.visible = !reflector.visible;
@@ -386,5 +413,5 @@ export function createBase(stage) {
     { pos: [1.7, 1.6, -1.2], target: [1.7, 1.6, -4], fov: 40 },
     { pos: [-0.5, 0.25, 2.5], target: [-1, 0.6, -2], fov: 45 },
   ];
-  return { group, update, reset, state, anchors, previewCams, mirrorScreen, lights: { lamp, screenLight, hemi, alarmWash } };
+  return { group, update, reset, state, anchors, previewCams, mirrorScreen, breakerHandle, lights: { lamp, screenLight, hemi, alarmWash } };
 }
