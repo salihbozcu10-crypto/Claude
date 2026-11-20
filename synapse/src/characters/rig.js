@@ -87,7 +87,8 @@ export function buildCharacter(specIn) {
     brow: hairMaterial(F.brow, { roughness: 0.7, anisotropy: 0 }),
     lip: skinMaterial(F.lip, { roughness: 0.38, clearcoat: 0.25, sssColor: 0xff3020 }),
     mouthIn: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
-    teeth: charMaterial(0xf2ece0, { roughness: 0.3, sheen: 0, clearcoat: 0.4, rim: 0.2 }),
+    // dişler: kenar ışığı yok (camgöbeği RIM aralık açıkken dişleri parlak bir şerit yapıyordu)
+    teeth: charMaterial(0xf2ece0, { roughness: 0.42, sheen: 0, clearcoat: 0.15, rim: 0 }),
     // (dişler ve dil, iç boşluğun önünde çizilsin diye daha güçlü polygonOffset alır)
     tongue: skinMaterial(0xc85a5c, { roughness: 0.35, clearcoat: 0.3 }),
     lash: new THREE.MeshStandardMaterial({ color: F.lashColor, roughness: 0.7 }),
@@ -96,6 +97,7 @@ export function buildCharacter(specIn) {
   mats.brow.map = browTexture(); mats.brow.transparent = true; mats.brow.depthWrite = false;
   mats.brow.polygonOffset = true; mats.brow.polygonOffsetFactor = -2; mats.brow.polygonOffsetUnits = -2;
   for (const m of [mats.teeth, mats.tongue]) { m.polygonOffset = true; m.polygonOffsetFactor = -4; m.polygonOffsetUnits = -4; }
+  const TEETH_C = mats.teeth.color.clone();
 
   // ---------- kafa yüzeyi ----------
   const eyeL = V(F.eyeX, F.eyeY, 0), eyeR = V(-F.eyeX, F.eyeY, 0);
@@ -108,13 +110,16 @@ export function buildCharacter(specIn) {
     const r = 1 / Math.sqrt((d.x / H.rx) ** 2 + (d.y / H.ry) ** 2 + (d.z / H.rz) ** 2);
     const p = d.clone().multiplyScalar(r);
     const ny = p.y / H.ry; // -1..1
+    // arka kafatası şişkinliği ny≈0 çevresinde yumuşak geçer (önceden z'de basamak vardı:
+    // kafa ve saç kabuğunun arkasında kulak hizasında yatay bir dikiş/çizgi oluşuyordu)
+    const crK = (H.cranium - 1) * smoothstep(-0.2, 0.25, ny);
     if (ny < 0) {
       const k = Math.pow(-ny, 1.5);
       p.x *= 1 - H.jaw * k;
-      if (p.z < 0) p.z *= 1 - 0.38 * Math.pow(-ny, 1.2);
+      if (p.z < 0) p.z *= (1 - 0.38 * Math.pow(-ny, 1.2)) * (1 + crK);
       else p.z *= 1 - 0.1 * k;
     } else if (p.z < 0) {
-      p.z *= H.cranium; p.y *= 1 + 0.03 * (H.cranium - 1);
+      p.z *= 1 + crK; p.y *= 1 + 0.03 * crK;
     }
     // yüzü hafif düzleştir
     if (p.z > 0) p.z *= 1 - H.faceFlat * smoothstep(0.0, 0.8, d.z) * (1 - Math.abs(ny) * 0.5);
@@ -162,18 +167,27 @@ export function buildCharacter(specIn) {
     const socket = new THREE.Group(); socket.name = s + 'EyeSocket';
     socket.position.set(sx * F.eyeX, F.eyeY, surf.z - F.eyeR * F.eyeDepth);
     socket.rotation.z = sx * F.eyeTilt; socket.rotation.y = sx * 0.12;
+    // göz + kapaklar derinlikte hafif basık: önden görünüm aynı, ama 3/4 açıda uzak göz burun
+    // kemerinin siluetinden dışarı taşmasın (önceden küre kapaklar yüzden ~0.55R çıkıntı yapıyordu)
+    socket.scale.set(1, 1, F.eyeFlat ?? 0.86);
     bones.face.add(socket);
     const ball = new THREE.Group(); socket.add(ball);
     const eg = new THREE.SphereGeometry(F.eyeR, 48, 32); eg.rotateX(Math.PI / 2);
-    const eMat = new THREE.MeshPhysicalMaterial({ map: irisTex, roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.03, emissive: 0x000000, emissiveIntensity: 1 });
+    // Not: çok düşük pürüzlülüklü (≈0.05) parlak kaplama, renkli nokta ışıklardan piksel altı ve
+    // aşırı parlak (HDR ~48) yansımalar üretiyordu: karede karede eflatun/camgöbeği yanıp sönme ve
+    // bloom haleleri. Göz ve kornea yansıması yumuşak ve sınırlı; "canlılık" boyalı parıltıdan gelir.
+    const eMat = new THREE.MeshPhysicalMaterial({ map: irisTex, roughness: 0.42, clearcoat: 0, specularIntensity: 0.6, emissive: 0x000000, emissiveIntensity: 1 });
     const eye = new THREE.Mesh(eg, eMat); ball.add(eye);
-    // kornea (yalnızca speküler, eklemeli)
+    // kornea (yalnızca yumuşak speküler, eklemeli)
     const cg = new THREE.SphereGeometry(F.eyeR * 1.012, 40, 20, 0, Math.PI * 2, 0, 0.75); cg.rotateX(Math.PI / 2);
-    { const p = cg.attributes.position; for (let i = 0; i < p.count; i++) { const z = p.getZ(i); if (z > F.eyeR * 0.75) p.setZ(i, z + (z - F.eyeR * 0.75) * 0.6); } cg.computeVertexNormals(); }
-    const corneaMat = new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.04, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, specularIntensity: 1, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, envMapIntensity: 2.5 });
+    { const p = cg.attributes.position; for (let i = 0; i < p.count; i++) { const z = p.getZ(i); if (z > F.eyeR * 0.75) p.setZ(i, z + (z - F.eyeR * 0.75) * 0.3); } cg.computeVertexNormals(); }
+    const corneaMat = new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.2, metalness: 0, clearcoat: 0, specularIntensity: 0.55, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, envMapIntensity: 1 });
+    // eklemeli parlama üst sınırı: renkli ışıklardan gelen yansıma bloom eşiğini aşıp yanıp sönmesin
+    corneaMat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', 'outgoingLight = min( outgoingLight, vec3( 0.42 ) );\n#include <opaque_fragment>'); };
+    corneaMat.customProgramCacheKey = () => 'corneaClamp';
     const cornea = new THREE.Mesh(cg, corneaMat); ball.add(cornea);
-    // parıltı (catchlight) — göz yuvasına sabit
-    const cl = new THREE.Mesh(new THREE.CircleGeometry(F.eyeR * 0.21, 24), glowMaterial(0xffffff, 1.8, { transparent: true, opacity: 0.92 }));
+    // parıltı (catchlight) — göz yuvasına sabit; bloom eşiğinin (≥1.1) altında kalır
+    const cl = new THREE.Mesh(new THREE.CircleGeometry(F.eyeR * 0.21, 24), glowMaterial(0xffffff, 0.95, { transparent: true, opacity: 0.92 }));
     cl.scale.set(1, 0.8, 1);
     socket.add(cl);
     // kapaklar
@@ -183,11 +197,27 @@ export function buildCharacter(specIn) {
     const upper = new THREE.Group(), lower = new THREE.Group();
     upper.add(new THREE.Mesh(ulg, mats.lid)); lower.add(new THREE.Mesh(llg, mats.lid));
     socket.add(upper, lower);
-    // kirpik çizgisi
-    const lashG = new THREE.TorusGeometry(R * 1.003, 0.0017 + F.lashes * 0.0012, 6, 40, Math.PI); lashG.rotateX(Math.PI / 2);
+    // kirpik çizgisi: kapak kenarı boyunca, uçlara doğru incelir; köşelerde kapağın dışına
+    // (yanağa/burun kökü derisine) taşmasın diye yayın iki ucu kısaltılır
+    // (açı 0 = +x ucu: sol gözde dış köşe, sağ gözde iç köşe — burun tarafı daha çok kısalır)
+    const tIn = 0.17 * Math.PI, tOut = 0.06 * Math.PI;
+    const LA0 = sx > 0 ? tOut : tIn, LA1 = Math.PI - (sx > 0 ? tIn : tOut), LAL = LA1 - LA0;
+    const lashG = new THREE.TorusGeometry(R * 1.003, 0.0017 + F.lashes * 0.0012, 6, 40, LAL); lashG.rotateZ(LA0);
+    {
+      const p = lashG.attributes.position; const v = V(), c = V();
+      for (let i = 0; i < p.count; i++) {
+        v.fromBufferAttribute(p, i); const a = Math.atan2(v.y, v.x);
+        c.set(Math.cos(a) * R * 1.003, Math.sin(a) * R * 1.003, 0);
+        const k = 0.3 + 0.7 * smoothstep(LA0, LA0 + 0.3, a) * smoothstep(LA1, LA1 - 0.3, a);
+        v.sub(c).multiplyScalar(k).add(c); p.setXYZ(i, v.x, v.y, v.z);
+      }
+      lashG.computeVertexNormals();
+    }
+    lashG.rotateX(Math.PI / 2);
     const lashMesh = new THREE.Mesh(lashG, mats.lash); upper.add(lashMesh);
     const lowLashG = new THREE.TorusGeometry(R * 1.0, 0.0008, 5, 40, Math.PI); lowLashG.rotateX(Math.PI / 2);
     const lowLash = new THREE.Mesh(lowLashG, new THREE.MeshStandardMaterial({ color: new THREE.Color(spec.skin).multiplyScalar(0.55), roughness: 0.8 })); lower.add(lowLash);
+    let wing = null;
     if (F.lashes > 0.25) {
       // dış köşe kirpikleri (kanat)
       const gs = [];
@@ -201,9 +231,10 @@ export function buildCharacter(specIn) {
         gs.push(lock([p0, p0.clone().addScaledVector(out, len * 0.5).add(V(0, len * 0.35, 0)), p0.clone().addScaledVector(out, len).add(V(sx * len * 0.3, len * 0.9, 0))], 0.0014, 0.0007, { segs: 5, radial: 4, taper: 0.1 }));
         void ang;
       }
-      upper.add(new THREE.Mesh(merge(gs), mats.lash));
+      wing = new THREE.Mesh(merge(gs), mats.lash);
+      upper.add(wing);
     }
-    eyes[s] = { socket, ball, eye, eMat, upper, lower, cl, corneaMat };
+    eyes[s] = { socket, ball, eye, eMat, upper, lower, cl, corneaMat, wing };
   }
 
   // ---------- burun ----------
@@ -371,8 +402,9 @@ export function buildCharacter(specIn) {
       E.eye.scale.set(1, 1, 1); E.eMat.userData.pupil = ps;
       // kapaklar
       const asym = s === 'l' ? Fc.lidL : Fc.lidR;
-      const wide = clamp(Fc.lidUp + asym, -1, 1);
-      let uOpen = -0.47 - wide * 0.18 + Math.max(0, eyePitch) * 0.5 - Math.min(0, eyePitch) * 0.35;
+      const wide = clamp(Fc.lidUp + asym, -1, 1.4);
+      // korkuda (wide > 0.5) kapak aşağı bakışı daha az izler: gözler "ağır kapaklı" okunmasın
+      let uOpen = -0.47 - wide * 0.18 + Math.max(0, eyePitch) * 0.5 * (1 - 0.85 * smoothstep(0.4, 1.1, wide)) - Math.min(0, eyePitch) * 0.35;
       const uClosed = 0.24;
       const up = lerp(uOpen, uClosed, blink);
       E.upper.rotation.x = up;
@@ -386,7 +418,9 @@ export function buildCharacter(specIn) {
       E.cl.position.copy(cd).multiplyScalar(F.eyeR * 1.03 + F.eyeR * 0.02);
       E.cl.lookAt(E.cl.position.clone().multiplyScalar(2).applyMatrix4(E.socket.matrixWorld));
       E.cl.quaternion.setFromUnitVectors(V(0, 0, 1), cd);
-      E.cl.visible = ch.catchlight.on > 0 && blink < 0.6;
+      E.cl.visible = ch.catchlight.on > 0 && blink < 0.35;
+      // kapanan kapakta kanat kirpikleri aşağı baksın (açıkken yukarı kıvrık)
+      if (E.wing) E.wing.scale.y = 1 - 2 * smoothstep(0.3, 0.85, blink);
     }
     // konuşma → ağız
     let open = Fc.open, wideM = Fc.wide, round = Fc.round;
@@ -481,6 +515,8 @@ export function buildCharacter(specIn) {
       for (let i = 0; i < cols; i++) { const a = i * 2; ti.push(a, a + 1, a + 2, a + 2, a + 1, a + 3); }
     }
     setGeo(mouth.teeth, tp, ti);
+    // ağız az açıkken dişler dudak/ağız boşluğunun gölgesinde kalır (sahte ortam örtmesi)
+    mats.teeth.color.copy(TEETH_C).multiplyScalar(0.3 + 0.7 * smoothstep(0.06, 0.45, open));
     // dil
     const gp = [], gi = [];
     if (open > 0.25) {
@@ -585,14 +621,16 @@ export const EXPR = {
   happy: { smile: 0.8, squint: 0.35, browUp: 0.25, lidUp: 0.1 },
   grin: { smile: 1, open: 0.35, squint: 0.4, browUp: 0.3, teeth: 0.4 },
   angry: { browIn: 1, browUp: -0.4, lidUp: 0.15, squint: 0.3, smile: -0.35, sneer: 0.2 },
-  scared: { browSad: 0.8, browUp: 0.7, lidUp: 0.9, smile: -0.35, open: 0.15, pupil: -0.3 },
+  scared: { browSad: 0.8, browUp: 0.7, lidUp: 1.25, squint: -0.2, smile: -0.8, open: 0.18, round: 0.25, teeth: -0.3, pupil: -0.3 },
   surprised: { browUp: 1, lidUp: 1, open: 0.45, round: 0.4 },
   sad: { browSad: 1, lidUp: -0.35, smile: -0.5 },
   worried: { browSad: 0.65, browIn: 0.25, smile: -0.25, lidUp: 0.15 },
   focused: { browIn: 0.45, squint: 0.3, lidUp: -0.15, smile: -0.05 },
   determined: { browIn: 0.6, browUp: -0.2, smile: -0.1, squint: 0.2 },
   pain: { browIn: 0.7, browSad: 0.6, squint: 0.8, lidUp: -0.6, smile: -0.4, open: 0.2, teeth: 1 },
-  shock: { browUp: 1, lidUp: 1, open: 0.6, round: 0.3, pupil: -0.4 },
+  // korku/şok: ağız köşeleri AŞAĞI, dikey gerilmiş oval ağız, üst dişler az; gözler iyice açık
+  // (smile ≥ 0 ve geniş D biçimli ağız alttan bakan kamerada sırıtma gibi okunuyordu)
+  shock: { browUp: 1, browSad: 0.3, lidUp: 1.25, open: 0.72, round: 0.85, smile: -1.5, wide: -0.25, teeth: -0.45, pupil: -0.4 },
   smirk: { smile: 0.45, sneer: 0.6, browL: 0.25, squint: 0.15 },
   tired: { lidUp: -0.55, browSad: 0.2, smile: -0.1 },
   sadSmile: { smile: 0.45, browSad: 0.7, squint: 0.25 },
@@ -751,7 +789,8 @@ function paintSkin(spec) {
         c.lerp(new THREE.Color(0x6a4040), clamp(ue * F.underEye * 0.35));
       }
       if (F.stubble > 0) {
-        const jaw = smoothstep(-0.05, -0.45, d.y) * smoothstep(-0.2, 0.4, d.z) * (1 - Math.exp(-((d.x / 0.08) ** 2) - (((d.y + 0.3) / 0.12) ** 2)) * 0.6);
+        // yalnızca çene/yanak hattı: kulağın gerisine (ense, kafa arkası) sarmaz
+        const jaw = smoothstep(-0.05, -0.45, d.y) * smoothstep(-0.05, 0.45, d.z) *(1 - Math.exp(-((d.x / 0.08) ** 2) - (((d.y + 0.3) / 0.12) ** 2)) * 0.6);
         const lipArea = Math.exp(-(((d.y + 0.43) / 0.07) ** 2)) * Math.exp(-((d.x / 0.3) ** 2)) * smoothstep(0.6, 0.9, d.z);
         const s = clamp(jaw * 1.1 + lipArea * 0.8) * F.stubble;
         const dots = (Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1;
