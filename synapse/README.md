@@ -68,6 +68,23 @@ tools/encode.sh                      # MP4 teslim dosyaları
 | `assets/` | `dialogue.json`, `voices/` (TTS çıktıları + dudak senkronu) |
 | `tools/` | `build.mjs`, `frames.mjs`, `render_all.sh`, `sheet.mjs`, `look.sh`, `cues.mjs`, `subs.mjs`, `encode.sh` |
 
+## Kalite kontrol
+
+İlk tam render çekim çekim görsel denetimden geçirildi; bulunan her kusur bağımsız ikinci bir inceleme
+tam çözünürlükte doğruladı (101 doğrulanmış bulgu). Kritik ve önemli olanların tamamı düzeltildi ve bölüm
+yeniden render edildi. Başlıca düzeltmeler:
+
+- tek karede sıçrayan baş, bakış ve poz geçişleri yumuşatıldı;
+- kameranın karakterlerin içinden geçtiği çekimler yeniden kuruldu;
+- CRT yansımasındaki dördüncü siluet ve 00:00:01 donma anı kadraja alındı;
+- 4. sahneye acil durum ışığı eklendi;
+- fotoğraf artık ele alınıyor, not el yazısıyla;
+- saç arka kafayı örtüyor, göz parlamaları kararlı, korku ifadesi düzeltildi;
+- başlık ve bitiş kartının parlaması ve kırpılması giderildi.
+
+Bilinen küçük sınırlar: geniş planlarda Defne'nin kıvırcık saçında hafif parıltı, 3/4 açıda uzak gözün burun
+çizgisini az da olsa taşması, burun köprüsünün tepeden çekimde çubuk gibi okunması.
+
 ## Kurallar (geliştirenler için)
 
 Birimler metre, +y yukarı, karakterler +z'ye bakar (solu +x). Her kare yalnızca zamanın fonksiyonudur
