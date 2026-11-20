@@ -129,6 +129,7 @@ export function createBase(stage) {
     const c = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.033, 0.125, 14), canMats[i % canMats.length]);
     const onDesk = i < 5;
     if (onDesk) c.position.set(-3.3 + i * 0.5, 0.785 + 0.0625, -3.1 + R() * 0.15);
+    if (onDesk && i === 2) c.position.set(-2.62, 0.8475, -3.38); // Defne'nin klavyesinden uzakta (s2_04 yazma çekimi)
     else { c.position.set(-4 + R() * 8.5, 0.033, -3 + R() * 6); c.rotation.set(Math.PI / 2, 0, R() * 6); if (Math.abs(c.position.x - 0.6) < 1.2 && Math.abs(c.position.z - 0.3) < 0.8) c.position.x += 2; }
     c.castShadow = true; group.add(c); cans.push(c);
   }
