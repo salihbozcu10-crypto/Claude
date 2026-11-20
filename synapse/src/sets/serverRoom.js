@@ -128,9 +128,10 @@ export function createServerRoom(stage) {
   for (let i = 0; i < 2; i++) {
     const s = lightShaft(3.6, 0.5 + i * 0.14, 1.1 + i * 0.3, 0x5a9cff, 0.13 - i * 0.03);
     s.position.set(0.4 + (i - 1) * 0.15, HT, 1.1 + (i - 1) * 0.1); s.rotation.set(0.12, 0, -0.08 + i * 0.05); group.add(s); shafts.push(s);
+    s.userData.base = 0.13 - i * 0.03;
   }
   // diğer ızgara (arkada, sönük)
-  { const s = lightShaft(3.4, 0.3, 0.7, 0x4a80d0, 0.05); s.position.set(-2.5, HT, -2.8); group.add(s); shafts.push(s); }
+  { const s = lightShaft(3.4, 0.3, 0.7, 0x4a80d0, 0.05); s.position.set(-2.5, HT, -2.8); group.add(s); shafts.push(s); s.userData.base = 0.05; }
 
   // --- neon sarı acil durum şeritleri ---
   const neonMat = glowMaterial(0xffc62a, 3.2);
@@ -142,7 +143,8 @@ export function createServerRoom(stage) {
   // kapı (aralık, ağır metal)
   const doorMat = rustMetalMaterial(0x4a5258, { rust: 0.7, seed: 12 });
   const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.4, 0.15), envMaterial(0x202328, { roughness: 0.6, metalness: 0.5 })); doorFrame.position.set(0, 1.2, 4.98); group.add(doorFrame);
-  const doorGap = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 2.2), glowMaterial(0x0a1220, 1)); doorGap.position.set(0, 1.1, 4.9); doorGap.rotation.y = Math.PI; group.add(doorGap);
+  const doorGapMat = glowMaterial(0x0a1220, 1);
+  const doorGap = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 2.2), doorGapMat); doorGap.position.set(0, 1.1, 4.9); doorGap.rotation.y = Math.PI; group.add(doorGap);
   const door = new THREE.Mesh(roundedBox(1.2, 2.18, 0.08, 0.02, 2), doorMat); door.position.set(-0.6, 1.1, 4.9); door.geometry.translate(0.6, 0, 0); door.rotation.y = 1.15; door.castShadow = true; group.add(door);
 
   // --- CRT için tahta sandık ---
@@ -153,6 +155,28 @@ export function createServerRoom(stage) {
   // yerde dağınık eski kâğıtlar / disketler
   const paperMat = envMaterial(0xc8c2b0, { roughness: 0.9 });
   for (let i = 0; i < 14; i++) { const p = new THREE.Mesh(new THREE.PlaneGeometry(0.21, 0.29), paperMat); p.rotation.set(-Math.PI / 2, 0, R() * 6); p.position.set(-2 + R() * 4, 0.003 + i * 0.0003, -2 + R() * 4.5); p.receiveShadow = true; group.add(p); }
+
+  // --- arka pus parıltısı: koridordan sızan soğuk ışığın sisteki halesi (vars. kapalı).
+  // Yansıma çekiminde önündeki karanlık figürü siluet olarak okutmak için kullanılır.
+  const glowTex = canvasTexture(128, 256, (g, w, h) => {
+    const gr = g.createRadialGradient(w / 2, h * 0.42, 0, w / 2, h * 0.42, h * 0.5);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  });
+  const backGlowMat = new THREE.MeshBasicMaterial({ map: glowTex, color: 0x5a9cff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+  const backGlow = new THREE.Mesh(new THREE.PlaneGeometry(1, 2), backGlowMat); backGlow.rotation.y = Math.PI; backGlow.visible = false; group.add(backGlow);
+
+  // --- sivri kapüşon kabuğu: s1_08'de "4. kişi"nin başına giydirilir (vars. gizli). Yalnızca bu sette
+  // yaşar; böylece diğer sahnelerdeki gölge karakter etkilenmez. Önü yüz için açık.
+  const hoodMat = new THREE.MeshBasicMaterial({ color: 0x010102, side: THREE.DoubleSide });
+  const lathe = (pts, gap) => { const g = new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 40, gap, Math.PI * 2 - 2 * gap); g.rotateX(-0.2); g.translate(0, 0.02, 0); return new THREE.Mesh(g, hoodMat); };
+  const hoodShell = new THREE.Group();
+  hoodShell.add(lathe([[0.27, -0.3], [0.24, -0.2], [0.218, -0.1], [0.21, 0.0], [0.203, 0.075]], 0.42)); // yüz açıklığı olan alt kısım
+  hoodShell.add(lathe([[0.205, 0.055], [0.196, 0.1], [0.162, 0.19], [0.108, 0.262], [0.052, 0.31], [0.014, 0.336], [0.0, 0.34]], 0)); // kapalı sivri tepe
+  // kapüşonun içi: baştan büyük, tamamen karanlık bir boşluk + iki soluk göz parıltısı
+  const voidM = new THREE.Mesh(new THREE.SphereGeometry(0.2, 24, 16), new THREE.MeshBasicMaterial({ color: 0x000000 })); voidM.scale.set(1, 1.08, 1); voidM.position.set(0, 0.01, -0.005); hoodShell.add(voidM);
+  for (const sx of [1, -1]) { const g = new THREE.Mesh(new THREE.CircleGeometry(0.0065, 12), glowMaterial(0x9fd8ff, 1.6, { transparent: true, opacity: 0.6 })); g.position.set(sx * 0.042, -0.005, 0.2); hoodShell.add(g); }
+  hoodShell.matrixAutoUpdate = false; hoodShell.visible = false; group.add(hoodShell);
 
   // --- toz ---
   const dustPts = dust(700, new THREE.Box3(V(-3, 0.2, -3.5), V(3, 3.2, 4.5)), { color: 0xa8c8ff, size: 0.014, opacity: 0.55 });
@@ -169,7 +193,10 @@ export function createServerRoom(stage) {
   const lights = { hemi, grateSpot, yellow, yellow2, backFill };
   const base = { hemi: 1.0, grateSpot: 26, yellow: 3.5, yellow2: 0, backFill: 0 };
 
-  const state = { flicker: 0, level: 1, fogDensity: 0.055 };
+  // shaft: ızgara huzmelerinin görünürlük çarpanı (vars. 1); doorGlow: kapı aralığından sızan soğuk ışık (vars. 1)
+  // backGlow: arka pus parıltısının şiddeti (0 = kapalı), backGlowAt: merkezi (Vector3), backGlowSize: yükseklik (m)
+  // hood: gölge figürün yüz kemiğinin dünya matrisi (Matrix4) verilirse sivri kapüşon kabuğu ona giydirilir
+  const state = { flicker: 0, level: 1, fogDensity: 0.055, shaft: 1, doorGlow: 1, backGlow: 0, backGlowAt: null, backGlowSize: 2.4, hood: null };
   const fog = new THREE.FogExp2(0x0a1424, 0.055);
 
   const crtTop = V(0, 0.74, -0.6);
@@ -183,7 +210,7 @@ export function createServerRoom(stage) {
     shadowFigure: Object.assign(V(0.15, 0, 2.4), { heading: Math.PI }),
   };
 
-  function reset() { state.flicker = 0; state.level = 1; state.fogDensity = 0.055; }
+  function reset() { Object.assign(state, { flicker: 0, level: 1, fogDensity: 0.055, shaft: 1, doorGlow: 1, backGlow: 0, backGlowAt: null, backGlowSize: 2.4, hood: null }); }
 
   function update(t, ctx) {
     ctx.scene.fog = fog; fog.density = state.fogDensity;
@@ -226,7 +253,11 @@ export function createServerRoom(stage) {
         else r.visible = false;
       });
     }
-    for (const s of shafts) s.userData.setTime(t);
+    for (const s of shafts) { s.userData.setTime(t); s.material.uniforms.intensity.value = s.userData.base * state.shaft; s.visible = state.shaft > 0.01; }
+    doorGapMat.color.setHex(0x0a1220).multiplyScalar(state.doorGlow);
+    backGlow.visible = state.backGlow > 0.005 && !!state.backGlowAt;
+    hoodShell.visible = !!state.hood; if (state.hood) hoodShell.matrix.copy(state.hood);
+    if (backGlow.visible) { backGlow.position.copy(state.backGlowAt); backGlow.scale.setScalar(state.backGlowSize / 2); backGlowMat.color.setHex(0x5a9cff).multiplyScalar(state.backGlow); }
     dustPts.userData.update(t);
   }
 
